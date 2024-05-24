@@ -1,0 +1,3 @@
+class ID { static countId = 0; }
+
+module.exports = ID;
