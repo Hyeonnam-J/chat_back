@@ -1,6 +1,4 @@
-/*
- * 진입
- */
+'use strict';
 
 const net = require('net');
 const id = require('./js/id.js');
