@@ -10,7 +10,7 @@ class Chat{
 
 Chat.infoType = Object.freeze({
     message: 'message',
-    alaram: 'alaram'
+    alarm: 'alarm'
 });
 
 module.exports = Chat;

@@ -16,14 +16,14 @@ const server = net.createServer( (socket) => {
     // 로그인 기능 생략. 접속한 순서대로 id 발급.
     // clients[] 대신 socket으로 방금 접속한 이에게만 전송.
     const m_id = id.countId++;
-    const welcomeMessage = new Chat(m_id.toString(), 'Welcome !', Chat.infoType.alaram, true);
+    const welcomeMessage = new Chat(m_id.toString(), 'Welcome !', Chat.infoType.alarm, true);
     socket.write(JSON.stringify(welcomeMessage));
     console.log('클라이언트 연결 됨', socket.remoteAddress, ':', socket.remotePort, '/ id: ', m_id);
 
     // 다른 유저들에게 새 유저 입장 알림 후 클라이언트 목록에 새로 추가.
     clients.forEach(c => {
-        const entranceAlaram = new Chat(m_id.toString(), `${m_id}님이 대화방에 입장하셨습니다`, Chat.infoType.alaram, false);
-        c.write(JSON.stringify(entranceAlaram));
+        const entranceAlarm = new Chat(m_id.toString(), `${m_id}님이 대화방에 입장하셨습니다`, Chat.infoType.alarm, false);
+        c.write(JSON.stringify(entranceAlarm));
     });
     clients.push(socket);
     console.log('클라이언트 수: ', clients.length);
@@ -52,7 +52,7 @@ const server = net.createServer( (socket) => {
 
         // 나머지 클라이언트들에게 알림.
         clients.forEach(c => {
-            const exitAlarm = new Chat(m_id, `${m_id}님이 대화방을 나가셨습니다.`, Chat.infoType.alaram, false);
+            const exitAlarm = new Chat(m_id, `${m_id}님이 대화방을 나가셨습니다.`, Chat.infoType.alarm, false);
             c.write(JSON.stringify(exitAlarm));
         });
 
