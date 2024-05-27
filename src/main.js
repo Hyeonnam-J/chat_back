@@ -44,9 +44,7 @@ const server = net.createServer((socket) => {
 
         // 먼저 클라이언트 목록에서 지우고,
         const index = clients.indexOf(socket);
-        if(index !== -1){
-            clients.splice(index, 1);
-        }
+        if(index !== -1) clients.splice(index, 1);
 
         // 나머지 클라이언트들에게 알림.
         clients.forEach(c => {
