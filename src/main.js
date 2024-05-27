@@ -50,7 +50,7 @@ const server = net.createServer( (socket) => {
 
         // 나머지 클라이언트들에게 알림.
         clients.forEach(c => {
-            const exitAlarm = new Chat(_id, `${m_id}님이 대화방을 나가셨습니다.`, Chat.INFO_TYPE.alarm, false);
+            const exitAlarm = new Chat(_id, `${_id}님이 대화방을 나가셨습니다.`, Chat.INFO_TYPE.alarm, false);
             c.write(JSON.stringify(exitAlarm));
         });
 
