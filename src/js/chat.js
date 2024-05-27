@@ -8,8 +8,9 @@ class Chat{
     });
 
     // js는 생성자를 통해 전달된 매개변수를 동적으로 선언.
-    constructor(id, message, infoType, issued){
+    constructor(id, nick, message, infoType, issued){
         this.id = id;
+        this.nick = nick;
         this.message = message;
         this.infoType = infoType;
         this.issued = issued;
