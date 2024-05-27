@@ -10,7 +10,7 @@ const HOST = '127.0.0.1';
 const clients = [];
 
 // 클라이언트 연결될 때마다 실행
-const server = net.createServer( (socket) => {
+const server = net.createServer((socket) => {
     // 로그인 기능 생략. 접속한 순서대로 id 발급.
     // clients[] 대신 socket으로 방금 접속한 이에게만 전송.
     const _id = ID.countId++;
