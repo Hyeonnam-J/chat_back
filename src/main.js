@@ -1,14 +1,16 @@
 'use strict';
 
+const { app } = require('electron');
+
 const net = require('net');
 const ID = require('./js/id.js');
 const Chat = require('./js/chat.js');
-const { getServerInfo } = require('./js/server.js');
+const { getServerInfo, getStateInfo, deleteClientsInfo, readClientsInfo, changeStateValueToAbnormal, appendClientInfo } = require('./js/files.js');
 
 let host,port;
 const clients = [];
 
-// Promise로 서버 정보 가져오기.
+// 서버 정보 가져오기.
 getServerInfo()
     .then((response) => {
         host = response.host;
@@ -23,28 +25,56 @@ getServerInfo()
         console.log('서버 실행 실패 !');
         console.log(response);
     });
-/* Promise로 서버 정보 가져오는 다른 방법.
-preload();
-async function preload(){
-    try {
-        const response = await getServerInfo();
-        host = response.host;
-        port = response.port;
 
-        // 실행 알림 출력
-        server.listen(port, host, () => {
-            console.log(`서버 실행 중 포트: ${port}, 호스트: ${host}`);
-        });
+// 상태 정보 가져오기.
+getStateInfoFromFiles();
+async function getStateInfoFromFiles(){
+    try {
+        const response = await getStateInfo();
+        switch(response){
+            case 'normal':
+                // 정상 종료 후 정상 실행.
+
+                // clients.txt 파일 초기화.
+                deleteClientsInfo();
+
+                console.log('야호 정상!');
+                return ;
+            case 'abnormal':
+                // 비정상 종료 후 긴급 실행.
+
+                // todo: clients.txt 읽어와서 연결.
+                readClientsInfo()
+                    .then(data => {
+                        console.log('my-typeof', typeof data);
+                        data.forEach(d => {
+                            // todo: 배열 순회하면서 클라이언트에게 알림.
+                            console.log('my-', d);
+                        })
+                    })
+                    .catch(e => {
+                        console.log(e);
+                    })
+
+                console.log('ㅠㅠ 비정상!');
+                return ;
+        }
     } catch(e) {
-        console.log('서버 실행 실패 !');
+        console.log('상태 정보를 불러오지 못했습니다.');
         console.log(e);
     }
 }
-*/
 
 // 통신 로직.
 // 클라이언트 연결될 때마다 실행
 const server = net.createServer((socket) => {
+    // 비정상 종료를 대비한 클라이언트 정보 외부 파일에 저장.
+    const clientInfo = {
+        remoteAddress: socket.remoteAddress,
+        remotePort: socket.remotePort
+    };
+    appendClientInfo(JSON.stringify(clientInfo) + '\n');    // 동기적으로 작동.
+    
     // 로그인 기능 생략. 접속한 순서대로 id 발급.
     // clients[] 대신 socket으로 방금 접속한 이에게만 전송.
     const id = ID.countId++;
@@ -79,6 +109,7 @@ const server = net.createServer((socket) => {
         }
     });
 
+    // end -> 클라이언트가 소켓 연결을 닫을 때 발생.
     socket.on('end', () => {
         console.log(`${id}번 클라이언트 연결 종료`);
 
@@ -95,3 +126,13 @@ const server = net.createServer((socket) => {
         console.log('클라이언트 수: ', clients.length);
     })
 });
+
+/**
+ * 서버 강제 종료 시를 대비한 로직.
+ * 정상 종료하더라도 메서드가 작동하기 때문에
+ * 정상 종료 시에는 state.txt의 값을 정상으로 바꿔줘야 한다.
+ */
+app.on('before-quit', () => {
+    changeStateValueToAbnormal();
+    console.log('execute before-quit logic');
+})
