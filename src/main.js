@@ -3,39 +3,50 @@
 const net = require('net');
 const ID = require('./js/id.js');
 const Chat = require('./js/chat.js');
-const fs = require('fs');
+const { getServerInfo } = require('./js/server.js');
 
-let HOST;
-let PORT;
-
+let host,port;
 const clients = [];
 
-const filePath = '/home/hn/project/chat_etc/server.txt';
-fs.readFile(filePath, 'utf-8', (err, data) => {
-    if (err) {
-        console.log('에러: ', err);
-    } else {
-        console.log('서버 정보: ', data);
+preload();
 
-        const seperator = data.indexOf('/');
-        const strHost = data.substring(0, seperator).trim();
-        const strPort = data.substring(seperator + 1).trim();
-
-        const hostSeperator = strHost.indexOf(':');
-        const portSeperator = strPort.indexOf(':');
-        const _host = strHost.substring(hostSeperator + 1).trim();
-        const _port = strPort.substring(portSeperator + 1).trim();
-
-        HOST = _host;
-        PORT = _port;
+// 서버 정보 가져오기.
+async function preload(){
+    try {
+        const response = await getServerInfo();
+        host = response.host;
+        port = response.port;
 
         // 실행 알림 출력
-        server.listen(PORT, HOST, () => {
-            console.log(`서버 실행 중 포트: ${PORT}, 호스트: ${HOST}`);
+        server.listen(port, host, () => {
+            console.log(`서버 실행 중 포트: ${port}, 호스트: ${host}`);
         });
+    } catch(e) {
+        console.log('서버 실행 실패 !');
+        console.log(e);
     }
-});
+}
 
+/*
+// Promise 가져오는 다른 방법.
+// 서버 정보 가져오기.
+getServerInfo()
+    .then((response) => {
+        host = response.host;
+        port = response.port;
+
+        // 실행 알림 출력
+        server.listen(port, host, () => {
+            console.log(`서버 실행 중 포트: ${port}, 호스트: ${host}`);
+        });
+    })
+    .catch((response) => {
+        console.log('서버 실행 실패 !');
+        console.log(response);
+    });
+*/
+
+// 통신 로직.
 // 클라이언트 연결될 때마다 실행
 const server = net.createServer((socket) => {
     // 로그인 기능 생략. 접속한 순서대로 id 발급.
