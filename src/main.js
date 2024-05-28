@@ -8,9 +8,23 @@ const { getServerInfo } = require('./js/server.js');
 let host,port;
 const clients = [];
 
-preload();
+// Promise로 서버 정보 가져오기.
+getServerInfo()
+    .then((response) => {
+        host = response.host;
+        port = response.port;
 
-// 서버 정보 가져오기.
+        // 실행 알림 출력
+        server.listen(port, host, () => {
+            console.log(`서버 실행 중 포트: ${port}, 호스트: ${host}`);
+        });
+    })
+    .catch((response) => {
+        console.log('서버 실행 실패 !');
+        console.log(response);
+    });
+/* Promise로 서버 정보 가져오는 다른 방법.
+preload();
 async function preload(){
     try {
         const response = await getServerInfo();
@@ -26,24 +40,6 @@ async function preload(){
         console.log(e);
     }
 }
-
-/*
-// Promise 가져오는 다른 방법.
-// 서버 정보 가져오기.
-getServerInfo()
-    .then((response) => {
-        host = response.host;
-        port = response.port;
-
-        // 실행 알림 출력
-        server.listen(port, host, () => {
-            console.log(`서버 실행 중 포트: ${port}, 호스트: ${host}`);
-        });
-    })
-    .catch((response) => {
-        console.log('서버 실행 실패 !');
-        console.log(response);
-    });
 */
 
 // 통신 로직.
