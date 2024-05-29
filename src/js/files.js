@@ -6,9 +6,9 @@ const { resolve } = require('path');
 
 const UTF_8 = 'utf-8';
 
-const SERVER_INFO_PATH = 'server.txt';
-const CLIENTS_INFO_PATH = 'clients.txt';
-const STATE_INFO_PATH = 'state.txt';
+const SERVER_INFO_PATH = '/home/hn/project/chat_etc/server.txt';
+const CLIENTS_INFO_PATH = '/home/hn/project/chat_etc/clients.txt';
+const STATE_INFO_PATH = '/home/hn/project/chat_etc/state.txt';
 
 const getServerInfo = function(){
     return new Promise((resolve, rejects) => {
@@ -66,22 +66,16 @@ const readClientsInfo = function(){
 }
 
 const changeStateValueToAbnormal = function() {
-    return new Promise((resolve, rejects) => {
-        fs.readFile(STATE_INFO_PATH, UTF_8, (err, data) => {
-            if(err){
-                rejects(err);
-            } else {
-                const updatedData = data.replace('normal', 'abnormal');
-                fs.writeFile(STATE_INFO_PATH, updatedData, UTF_8, err => {
-                    if(err){
-                        rejects(err);
-                    } else {
-                        resolve();
-                    }
-                })
-            }
-        })
-    })
+    fs.writeFileSync(STATE_INFO_PATH, 'abnormal', UTF_8);
+    // return new Promise((resolve, rejects) => {
+    //     fs.writeFile(STATE_INFO_PATH, 'abnormal', UTF_8, (err) => {
+    //         if(err){
+    //             rejects(err);
+    //         } else {
+    //             resolve();
+    //         }
+    //     });
+    // });
 }
 
 const appendClientInfo = function(data){

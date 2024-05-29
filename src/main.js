@@ -31,8 +31,8 @@ getStateInfoFromFiles();
 async function getStateInfoFromFiles(){
     try {
         const response = await getStateInfo();
-        switch(response){
-            case 'normal':
+        switch(response.trim()){
+            case '':
                 // 정상 종료 후 정상 실행.
                 console.log('야호 정상!');
 
@@ -50,13 +50,17 @@ async function getStateInfoFromFiles(){
                         // clients.txt 파일 초기화.
                         deleteClientsInfo();
 
+                        console.log('지우기 전 가져온 데이터: ', data);
                         data.forEach(d => {
-                            console.log('state: abnormal / ', d);
-
                             const _socket = new net.Socket();
                             _socket.connect(d.remotePort, d.remoteAddress, () => {
                                 console.log('서버는 연결 신청 완료');
                             });
+
+                            _socket.on('error', e => {
+                                // 서버가 재시작 했는데 그 전에 클라이언트들이 나가버린 경우.
+                                console.log('서버 다시 시작했는데 클라이언트 한 명이 나갔네..', e);
+                            })
                         })
                     })
                     .catch(e => {
@@ -72,6 +76,9 @@ async function getStateInfoFromFiles(){
         console.log(e);
     }
 }
+
+const { executeExceptionHandler } = require('./js/handler.js');
+executeExceptionHandler();
 
 // 통신 로직.
 // 클라이언트 연결될 때마다 실행
@@ -111,11 +118,10 @@ const server = net.createServer((socket) => {
         } else if (obj_data.infoType === Chat.INFO_TYPE.requestClientSocketInfo){    // 서버 재시작으로 이미 아이디는 가지고 있다면,
             id = obj_data.id;
             nick = obj_data.nick;
-            
-            const socketInfoChat = new Chat(id, nick, '재시작 미안 !', Chat.INFO_TYPE.responseClientSocketInfo, socket.remotePort, socket.remoteAddress);
+
+            const socketInfoChat = new Chat(id, nick, '서버와 연결되었습니다.', Chat.INFO_TYPE.responseClientSocketInfo, socket.remotePort, socket.remoteAddress);
             socket.write(JSON.stringify(socketInfoChat));
         } else if (obj_data.infoType === Chat.INFO_TYPE.message){    // 그냥 메시지면,
-            console.log('그냥 메시지면...');
             const newChat = new Chat(id, nick, obj_data.message, Chat.INFO_TYPE.message, socket.remotePort, socket.remoteAddress);
             console.log(JSON.stringify(newChat));
             clients.forEach(c => {
@@ -145,9 +151,9 @@ const server = net.createServer((socket) => {
 /**
  * 서버 강제 종료 시를 대비한 로직.
  * 정상 종료하더라도 메서드가 작동하기 때문에
- * 정상 종료 시에는 state.txt의 값을 정상으로 바꿔줘야 한다.
+ * 정상 종료 시에는 state.txt의 값을 비워줘야 하지만
+ * 24시 채팅 앱이라면 종료는 언제나 비정상 종료기 때문에..
  */
 app.on('before-quit', () => {
     changeStateValueToAbnormal();
-    console.log('execute before-quit logic');
 })
