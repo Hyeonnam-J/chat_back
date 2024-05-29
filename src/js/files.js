@@ -1,8 +1,6 @@
 'user strict';
 
-const { rejects } = require('assert');
 const fs = require('fs');
-const { resolve } = require('path');
 
 const UTF_8 = 'utf-8';
 

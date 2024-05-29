@@ -11,6 +11,8 @@ const { executeExceptionHandler } = require('./js/handler.js');
 let host, port;
 const clients = [];
 
+executeExceptionHandler();
+
 // 서버 정보 가져오기.
 getServerInfo()
     .then((response) => {
@@ -155,5 +157,3 @@ const server = net.createServer((socket) => {
 app.on('before-quit', () => {
     changeStateValueToAbnormal();
 });
-
-executeExceptionHandler();
