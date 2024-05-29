@@ -4,9 +4,11 @@ class Chat{
     
     static INFO_TYPE = Object.freeze({
         message: 'message',
-        requestId: 'requestId',
-        issueId: 'issueId',
-        inform: 'inform'
+        inform: 'inform',
+        requestClientSocketInfoWithId: 'requestClientSocketInfoWithId',
+        requestClientSocketInfo: 'requestClientSocketInfo',
+        responseClientSocketInfoWithId: 'responseClientSocketInfoWithId',
+        responseClientSocketInfo: 'responseClientSocketInfo',
     });
 
     // static STATE = Object.freeze({

@@ -44,15 +44,11 @@ const getStateInfo = function() {
 }
 
 const deleteClientsInfo = function() {
-    return new Promise((resolve, rejects) => {
-        fs.writeFile(CLIENTS_INFO_PATH, '', UTF_8, (err, data) => {
-            if(err){
-                rejects(err);
-            } else {
-                resolve();
-            }
-        })
-    })
+    try{
+        fs.writeFileSync(CLIENTS_INFO_PATH, '', UTF_8);
+    } catch(e) {
+        console.error('파일 삭제 실패', e);
+    }
 }
 
 const readClientsInfo = function(){
