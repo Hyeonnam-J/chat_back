@@ -7,7 +7,7 @@ const ID = require('./js/id.js');
 const Chat = require('./js/chat.js');
 const { getServerInfo, getStateInfo, deleteClientsInfo, readClientsInfo, changeStateValueToAbnormal, appendClientInfo } = require('./js/files.js');
 
-let host,port;
+let id, nick, host,port;
 const clients = [];
 
 // 서버 정보 가져오기.
@@ -26,7 +26,7 @@ getServerInfo()
         console.log(response);
     });
 
-// 상태 정보 가져오기.
+// 상태 정보 가져온 후 로직.
 getStateInfoFromFiles();
 async function getStateInfoFromFiles(){
     try {
@@ -34,30 +34,36 @@ async function getStateInfoFromFiles(){
         switch(response){
             case 'normal':
                 // 정상 종료 후 정상 실행.
+                console.log('야호 정상!');
 
                 // clients.txt 파일 초기화.
                 deleteClientsInfo();
-
-                console.log('야호 정상!');
+                
                 return ;
             case 'abnormal':
                 // 비정상 종료 후 긴급 실행.
+                console.log('ㅠㅠ 비정상!');
 
                 // todo: clients.txt 읽어와서 연결.
                 readClientsInfo()
                     .then(data => {
-                        console.log('my-typeof', typeof data);
                         data.forEach(d => {
                             // todo: 배열 순회하면서 클라이언트에게 알림.
-                            console.log('my-', d);
+                            console.log('state: abnormal / ', d);
+
+                            const _socket = new net.Socket();
+                            _socket.connect(d.remotePort, d.remoteAddress, () => {
+                                console.log('서버는 연결 신청 완료');
+                            });
                         })
                     })
                     .catch(e => {
                         console.log(e);
                     })
-
-                console.log('ㅠㅠ 비정상!');
-                return ;
+                    .finally(f => {
+                        console.log('finally-');
+                        return ;
+                    })
         }
     } catch(e) {
         console.log('상태 정보를 불러오지 못했습니다.');
@@ -68,44 +74,41 @@ async function getStateInfoFromFiles(){
 // 통신 로직.
 // 클라이언트 연결될 때마다 실행
 const server = net.createServer((socket) => {
-    // 비정상 종료를 대비한 클라이언트 정보 외부 파일에 저장.
-    const clientInfo = {
-        remoteAddress: socket.remoteAddress,
-        remotePort: socket.remotePort
-    };
-    appendClientInfo(JSON.stringify(clientInfo) + '\n');    // 동기적으로 작동.
-    
-    // 로그인 기능 생략. 접속한 순서대로 id 발급.
-    // clients[] 대신 socket으로 방금 접속한 이에게만 전송.
-    const id = ID.countId++;
-    let nick = '없음';
-
-    const welcomeMessage = new Chat(id, null, 'Welcome !', Chat.INFO_TYPE.alarm, true);
-    socket.write(JSON.stringify(welcomeMessage));
-    console.log('클라이언트 연결 됨', socket.remoteAddress, ':', socket.remotePort, '/ id: ', id);
 
     socket.on('data', (data) => {
         const json_data = data.toString();
         const obj_data = JSON.parse(json_data);
-
         console.log('클라이언트로부터 받은 메시지: ', json_data);
 
-        // 다른 방법이..
-        // 다른 유저들에게 새 유저 입장 알림 후 클라이언트 목록에 새로 추가.
-        if (obj_data.issued) {
+        if(obj_data.infoType === Chat.INFO_TYPE.requestId){ // 아이디가 없는, 이제 막 연결한 유저면,
+            // 로그인 기능 생략. 접속한 순서대로 id 발급.
+            // clients[] 대신 socket으로 방금 접속한 이에게만 전송.
+            id = ID.countId++;
             nick = obj_data.nick;
-            const entranceAlarm = new Chat(obj_data.id, obj_data.nick, `${obj_data.nick}님이 대화방에 입장하셨습니다`, Chat.INFO_TYPE.alarm, false);
+            const welcomeMessage = new Chat(id, nick, 'Welcome !', Chat.INFO_TYPE.issueId, socket.remotePort, socket.remoteAddress);
+            socket.write(JSON.stringify(welcomeMessage));
+            console.log('클라이언트 연결 됨', socket.remoteAddress, ':', socket.remotePort, '/ id: ', id);
+
+            // 지금 clients를 순회하면서 새 유저 입장 알림 후 clients 목록에 새 유저 추가.
+            const entranceAlarm = new Chat(id, nick, `${nick}님이 대화방에 입장하셨습니다`, Chat.INFO_TYPE.inform, socket.remotePort, socket.remoteAddress);
             clients.forEach(c => {
                 c.write(JSON.stringify(entranceAlarm));
             });
             clients.push(socket);
+
+            // 비정상 종료를 대비한 클라이언트 정보 외부 파일에 저장.
+            const clientInfo = {
+                remoteAddress: socket.remoteAddress,
+                remotePort: socket.remotePort
+            };
+            appendClientInfo(JSON.stringify(clientInfo) + '\n');    // 동기적으로 작동.
+
             console.log('클라이언트 수: ', clients.length);
-        } else {
-            // 유저에게 받은 메시지를 접속한 모든 유저에게 다시 보내는 로직
-            const newMessage = new Chat(obj_data.id, obj_data.nick, obj_data.message, Chat.INFO_TYPE.message, false);
+        } else if(obj_data.infoType === Chat.INFO_TYPE.message){    // 그냥 메시지면,
+            const newChat = new Chat(id, nick, obj_data.messsage, Chat.INFO_TYPE.message, socket.remotePort, socket.remoteAddress);
             clients.forEach(c => {
-                c.write(JSON.stringify(newMessage));
-            })
+                c.write(JSON.stringify(newChat));
+            });
         }
     });
 
@@ -119,7 +122,7 @@ const server = net.createServer((socket) => {
 
         // 나머지 클라이언트들에게 알림.
         clients.forEach(c => {
-            const exitAlarm = new Chat(id, nick, `${nick}님이 대화방을 나가셨습니다.`, Chat.INFO_TYPE.alarm, false);
+            const exitAlarm = new Chat(id, nick, `${nick}님이 대화방을 나가셨습니다.`, Chat.INFO_TYPE.inform, socket.remotePort, socket.remoteAddress);
             c.write(JSON.stringify(exitAlarm));
         });
 

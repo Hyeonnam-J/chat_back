@@ -2,15 +2,12 @@
 
 const { rejects } = require('assert');
 const fs = require('fs');
-const readline = require('readline');
 const { resolve } = require('path');
 
 const UTF_8 = 'utf-8';
 
-const SERVER_INFO_PATH = '/home/hn/project/chat_etc/server.txt';
-// const CLIENTS_INFO_PATH = '/home/hn/project/chat_etc/clients.txt';
+const SERVER_INFO_PATH = 'server.txt';
 const CLIENTS_INFO_PATH = 'clients.txt';
-// const STATE_INFO_PATH = '/home/hn/project/chat_etc/state.txt';
 const STATE_INFO_PATH = 'state.txt';
 
 const getServerInfo = function(){

@@ -4,16 +4,23 @@ class Chat{
     
     static INFO_TYPE = Object.freeze({
         message: 'message',
-        alarm: 'alarm'
+        requestId: 'requestId',
+        issueId: 'issueId',
+        inform: 'inform'
     });
 
-    // js는 생성자를 통해 전달된 매개변수를 동적으로 선언.
-    constructor(id, nick, message, infoType, issued){
+    // static STATE = Object.freeze({
+    //     normal: 'normal',
+    //     abnormal_restart: 'abnormal_restart'
+    // });
+
+    constructor(id, nick, message, infoType, destinationPort, destinationHost){
         this.id = id;
         this.nick = nick;
         this.message = message;
         this.infoType = infoType;
-        this.issued = issued;
+        this.destinationPort = destinationPort;
+        this.destinationHost = destinationHost;
     }
     
 }
