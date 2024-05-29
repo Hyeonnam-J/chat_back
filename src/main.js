@@ -1,11 +1,12 @@
 'use strict';
 
 const { app } = require('electron');
-
 const net = require('net');
+
 const ID = require('./js/id.js');
 const Chat = require('./js/chat.js');
 const { getServerInfo, getStateInfo, deleteClientsInfo, readClientsInfo, changeStateValueToAbnormal, appendClientInfo } = require('./js/files.js');
+const { executeExceptionHandler } = require('./js/handler.js');
 
 let host, port;
 const clients = [];
@@ -57,9 +58,9 @@ async function getStateInfoFromFiles(){
                                 console.log('서버는 연결 신청 완료');
                             });
 
+                            // 서버가 재시작 했는데 그 전에 클라이언트들이 나가버린 경우.
                             _socket.on('error', e => {
-                                // 서버가 재시작 했는데 그 전에 클라이언트들이 나가버린 경우.
-                                console.log('서버 다시 시작했는데 클라이언트 한 명이 나갔네..', e);
+                                console.log(`서버 시작 전에 클라이언트 ${d.remoteAddress}:${d.remotePort} 앱 종료..`);
                             })
                         })
                     })
@@ -76,9 +77,6 @@ async function getStateInfoFromFiles(){
         console.log(e);
     }
 }
-
-const { executeExceptionHandler } = require('./js/handler.js');
-executeExceptionHandler();
 
 // 통신 로직.
 // 클라이언트 연결될 때마다 실행
@@ -156,4 +154,6 @@ const server = net.createServer((socket) => {
  */
 app.on('before-quit', () => {
     changeStateValueToAbnormal();
-})
+});
+
+executeExceptionHandler();
