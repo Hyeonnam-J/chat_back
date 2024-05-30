@@ -64,7 +64,7 @@ const readClientsInfo = function(){
 }
 
 const changeStateValueToAbnormal = function() {
-    fs.writeFileSync(STATE_INFO_PATH, 'abnormal', UTF_8);
+    fs.writeFileSync(STATE_INFO_PATH, 'keep', UTF_8);
 }
 
 const appendClientInfo = function(data){

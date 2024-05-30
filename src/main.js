@@ -36,18 +36,17 @@ async function getStateInfoFromFiles(){
         const response = await getStateInfo();
         switch(response.trim()){
             case '':
-                // 정상 종료 후 정상 실행.
-                console.log('야호 정상!');
+                // 새롭게 개편 후 시작.
+                console.log('새롭게 시작 !');
 
                 // clients.txt 파일 초기화.
                 deleteClientsInfo();
                 
                 return ;
-            case 'abnormal':
-                // 비정상 종료 후 긴급 실행.
-                console.log('ㅠㅠ 비정상!');
+            case 'keep':
+                // 이전과 연결된 시작.
+                console.log('이어서 시작 !');
 
-                // todo: clients.txt 읽어와서 연결.
                 readClientsInfo()
                     .then(data => {
                         // clients.txt 파일 초기화.
