@@ -57,6 +57,8 @@ async function getStateInfoFromFiles(){
                             const _socket = new net.Socket();
                             _socket.connect(d.remotePort, d.remoteAddress, () => {
                                 console.log('서버는 연결 신청 완료');
+
+                                _socket.destroy();
                             });
 
                             // 서버가 재시작 했는데 그 전에 클라이언트들이 나가버린 경우.
