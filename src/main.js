@@ -118,12 +118,8 @@ const server = net.createServer((socket) => {
             const welcomeChat = new Chat(id, nick, `어서오세요 ${nick} 님 !`, Chat.INFO_TYPE.responseClientSocketInfoWithId, socket.remotePort, socket.remoteAddress);
             socket.write(JSON.stringify(welcomeChat));
 
-            // 지금 clients를 순회하면서 새 유저 입장 알림 후 clients 목록에 새 유저 추가.
-            const entranceAlarm = new Chat(id, nick, `${nick}님이 대화방에 입장하셨습니다`, Chat.INFO_TYPE.inform, socket.remotePort, socket.remoteAddress);
-            clients.forEach(c => {
-                // 입장 인사는 다른 사람들에게만,
-                if(c !== socket) c.write(JSON.stringify(entranceAlarm));
-            });
+            // 입장 유저 제외 나머지 유저에게 새 유저 입장 알림.
+            await broadcastMessage(new Chat(id, nick, `${nick}님이 대화방에 입장하셨습니다`, Chat.INFO_TYPE.inform, socket.remotePort, socket.remoteAddress), socket);
 
             console.log('클라이언트 수: ', clients.length);
         } else if (obj_data.infoType === Chat.INFO_TYPE.requestClientSocketInfo){    // 서버 재시작으로 이미 아이디는 가지고 있다면,
@@ -133,16 +129,13 @@ const server = net.createServer((socket) => {
             const socketInfoChat = new Chat(id, nick, '서버와 연결되었습니다.', Chat.INFO_TYPE.responseClientSocketInfo, socket.remotePort, socket.remoteAddress);
             socket.write(JSON.stringify(socketInfoChat));
         } else if (obj_data.infoType === Chat.INFO_TYPE.message){    // 그냥 메시지면,
-            const newChat = new Chat(id, nick, obj_data.message, Chat.INFO_TYPE.message, socket.remotePort, socket.remoteAddress);
+            await broadcastMessage(new Chat(id, nick, obj_data.message, Chat.INFO_TYPE.message, socket.remotePort, socket.remoteAddress));
             console.log(JSON.stringify(newChat));
-            clients.forEach(c => {
-                c.write(JSON.stringify(newChat));
-            });
         }
     });
 
     // end -> 클라이언트가 소켓 연결을 닫을 때 발생.
-    socket.on('end', () => {
+    socket.on('end', async () => {
         console.log(`${id}번 클라이언트 연결 종료`);
 
         // 먼저 클라이언트 목록에서 지우고,
@@ -150,14 +143,32 @@ const server = net.createServer((socket) => {
         if (index !== -1) clients.splice(index, 1);
 
         // 나머지 클라이언트들에게 알림.
-        clients.forEach(c => {
-            const exitAlarm = new Chat(id, nick, `${nick}님이 대화방을 나가셨습니다.`, Chat.INFO_TYPE.inform, socket.remotePort, socket.remoteAddress);
-            c.write(JSON.stringify(exitAlarm));
-        });
+        await broadcastMessage(new Chat(id, nick, `${nick}님이 대화방을 나가셨습니다.`, Chat.INFO_TYPE.inform, socket.remotePort, socket.remoteAddress));
 
         console.log('클라이언트 수: ', clients.length);
     })
 });
+
+/**
+ * 모든 클라이언트들에게 메시지, 알림을 보내는 메서드.
+ * @param {Socket} exceptSocket - 당사자에게 알림 메시지 제외시키기 위한 변수.
+ */
+async function broadcastMessage(message, exceptSocket = null){
+    const promises = clients.map(c => sendMessage(c, message, exceptSocket));
+    await Promise.all(promises);
+}
+
+// 단일 클라이언트 소켓에 메시지 전송.
+function sendMessage(client, message, exceptSocket){
+    return new Promise((resolve, rejects) => {
+        if(client !== exceptSocket){
+            client.write(JSON.stringify(message), (err) => {
+                if(err) rejects(err);
+                else resolve();
+            });
+        }
+    });
+}
 
 /**
  * 서버 강제 종료 시를 대비한 로직.
