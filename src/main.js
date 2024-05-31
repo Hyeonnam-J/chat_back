@@ -78,10 +78,10 @@ async function getStateInfoFromFiles(){
                             });
 
                             // 서버가 재시작 했는데 그 전에 클라이언트들이 나가버린 경우.
-                            _socket.on('error', e => {
+                            _socket.on('error', async (e) => {
                                 console.log(`서버 시작 전에 클라이언트 ${d.remoteAddress}:${d.remotePort} / ${d.id} / ${d.nick} 님, 앱 종료..`);
                                 disconnectedClients.push(d);
-                                notifyDisconnectedClientsAfterChecking();
+                                await notifyDisconnectedClientsAfterChecking();
                             })
                         })
                     })
@@ -141,11 +141,10 @@ const server = net.createServer((socket) => {
 
             const socketInfoChat = new Chat(id, nick, '서버와 연결되었습니다.', Chat.INFO_TYPE.responseClientSocketInfo, socket.remotePort, socket.remoteAddress);
             socket.write(JSON.stringify(socketInfoChat));
-            notifyDisconnectedClientsAfterChecking();
+            await notifyDisconnectedClientsAfterChecking();
 
         } else if (obj_data.infoType === Chat.INFO_TYPE.message){    // 그냥 메시지면,
             await broadcastMessage(new Chat(id, nick, obj_data.message, Chat.INFO_TYPE.message, socket.remotePort, socket.remoteAddress));
-            console.log(JSON.stringify(newChat));
         }
     });
 
@@ -177,13 +176,12 @@ function registerClient(id, nick, socket){
 }
 
 // 서버 재시작 후, 서버가 종료되어있는 동안 나간 클라이언트 목록 알림.
-function notifyDisconnectedClientsAfterChecking(){
+async function notifyDisconnectedClientsAfterChecking(){
     countPreviousConnection++;
     if(previousConnection === countPreviousConnection){
-        console.log('클라이언트 수: ', clients.length);
-        disconnectedClients.forEach(async (dc) => {
+        for(const dc of disconnectedClients){
             await broadcastMessage(new Chat(dc.id, dc.nick, `${dc.nick} 님이 대화방을 나가셨습니다.`, Chat.INFO_TYPE.inform, dc.remotePort, dc.remoteAddress));
-        })
+        }
     }
 }
 
@@ -201,9 +199,13 @@ function sendMessage(client, message, exceptSocket){
     return new Promise((resolve, rejects) => {
         if(client !== exceptSocket){
             client.write(JSON.stringify(message), (err) => {
+                console.log('서버가 보낸 메시지: ', JSON.stringify(message));
+
                 if(err) rejects(err);
                 else resolve();
             });
+        } else {
+            resolve();
         }
     });
 }
