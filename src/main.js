@@ -2,6 +2,7 @@
 
 const { app } = require('electron');
 const net = require('net');
+const { Mutex } = require('async-mutex');
 
 const ID = require('./js/id.js');
 const Chat = require('./js/chat.js');
@@ -10,6 +11,7 @@ const { executeExceptionHandler } = require('./js/handler.js');
 
 let host, port;
 const clients = [];
+const mutex = new Mutex();  // 전역적으로 하나의 뮤텍스를 공유하기 위해 전역변수로 선언.
 
 executeExceptionHandler();
 
@@ -95,16 +97,24 @@ const server = net.createServer((socket) => {
     appendClientInfo(JSON.stringify(clientInfo) + '\n');    // 동기적으로 작동.
     clients.push(socket);
 
-    socket.on('data', (data) => {
+    socket.on('data', async (data) => {
         const json_data = data.toString();
         const obj_data = JSON.parse(json_data);
         console.log('클라이언트로부터 받은 메시지: ', json_data);
 
         if(obj_data.infoType === Chat.INFO_TYPE.requestClientSocketInfoWithId){ // 아이디가 없는, 이제 막 연결한 유저면,
             // 로그인 기능 생략. 접속한 순서대로 id 발급.
-            // clients[] 대신 socket으로 방금 접속한 이에게만 전송.
-            id = ID.countId++;
+            // 뮤텍스를 통해 동시성 문제 접근.
+            const release = await mutex.acquire();
+            try{
+                id = ID.countId++;
+            } finally {
+                release();
+            }
+
             nick = obj_data.nick;
+
+            // clients[] 대신 socket으로 방금 접속한 이에게만 전송.
             const welcomeChat = new Chat(id, nick, `어서오세요 ${nick} 님 !`, Chat.INFO_TYPE.responseClientSocketInfoWithId, socket.remotePort, socket.remoteAddress);
             socket.write(JSON.stringify(welcomeChat));
 
@@ -154,7 +164,9 @@ const server = net.createServer((socket) => {
  * 정상 종료하더라도 메서드가 작동하기 때문에
  * 정상 종료 시에는 state.txt의 값을 비워줘야 하지만
  * 24시 채팅 앱이라면 종료는 언제나 비정상 종료기 때문에..
+ * 
+ * 굳이? 그냥 참조하는 데이터를 keep으로 바꿔놓으면 되는데.
  */
-app.on('before-quit', () => {
-    changeStateValueToAbnormal();
-});
+// app.on('before-quit', () => {
+//     changeStateValueToAbnormal();
+// });
