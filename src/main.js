@@ -13,6 +13,17 @@ let host, port;
 const clients = [];
 const mutex = new Mutex();  // 전역적으로 하나의 뮤텍스를 공유하기 위해 전역변수로 선언.
 
+/**
+ * 서버 다운 중 기다리지 않고 나간 클라이언트 체크.
+ * 
+ * previousConnection - 이전 클라이언트의 수.
+ * countPreviousConnection - 연결에 다시 성공하거나 실패할 때마다 +1.
+ * disconnectedClients[] - 이전 클라이언트 정보 저장 객체.
+ */
+let previousConnection  = 0;
+let countPreviousConnection = 0;
+const disconnectedClients = [];
+
 executeExceptionHandler();
 
 // 서버 정보 가져오기.
@@ -51,7 +62,10 @@ async function getStateInfoFromFiles(){
 
                 readClientsInfo()
                     .then(data => {
-                        // clients.txt 파일 초기화.
+                        previousConnection = data.length;
+                        console.log('previousConnection: ', previousConnection);
+
+                        // 이전 정보를 data에 담은 후 clients.txt 파일 초기화.
                         deleteClientsInfo();
 
                         console.log('지우기 전 가져온 데이터: ', data);
@@ -65,7 +79,9 @@ async function getStateInfoFromFiles(){
 
                             // 서버가 재시작 했는데 그 전에 클라이언트들이 나가버린 경우.
                             _socket.on('error', e => {
-                                console.log(`서버 시작 전에 클라이언트 ${d.remoteAddress}:${d.remotePort} 앱 종료..`);
+                                console.log(`서버 시작 전에 클라이언트 ${d.remoteAddress}:${d.remotePort} / ${d.id} / ${d.nick} 님, 앱 종료..`);
+                                disconnectedClients.push(d);
+                                notifyDisconnectedClientsAfterChecking();
                             })
                         })
                     })
@@ -89,14 +105,6 @@ const server = net.createServer((socket) => {
     console.log('클라이언트 연결 됨', socket.remoteAddress, ':', socket.remotePort);
     let id, nick;
 
-    // 비정상 종료를 대비한 클라이언트 정보 외부 파일에 저장.
-    const clientInfo = {
-        remoteAddress: socket.remoteAddress,
-        remotePort: socket.remotePort
-    };
-    appendClientInfo(JSON.stringify(clientInfo) + '\n');    // 동기적으로 작동.
-    clients.push(socket);
-
     socket.on('data', async (data) => {
         const json_data = data.toString();
         const obj_data = JSON.parse(json_data);
@@ -114,6 +122,8 @@ const server = net.createServer((socket) => {
 
             nick = obj_data.nick;
 
+            registerClient(id, nick, socket);
+
             // clients[] 대신 socket으로 방금 접속한 이에게만 전송.
             const welcomeChat = new Chat(id, nick, `어서오세요 ${nick} 님 !`, Chat.INFO_TYPE.responseClientSocketInfoWithId, socket.remotePort, socket.remoteAddress);
             socket.write(JSON.stringify(welcomeChat));
@@ -122,12 +132,17 @@ const server = net.createServer((socket) => {
             await broadcastMessage(new Chat(id, nick, `${nick}님이 대화방에 입장하셨습니다`, Chat.INFO_TYPE.inform, socket.remotePort, socket.remoteAddress), socket);
 
             console.log('클라이언트 수: ', clients.length);
+
         } else if (obj_data.infoType === Chat.INFO_TYPE.requestClientSocketInfo){    // 서버 재시작으로 이미 아이디는 가지고 있다면,
             id = obj_data.id;
             nick = obj_data.nick;
 
+            registerClient(id, nick, socket);
+
             const socketInfoChat = new Chat(id, nick, '서버와 연결되었습니다.', Chat.INFO_TYPE.responseClientSocketInfo, socket.remotePort, socket.remoteAddress);
             socket.write(JSON.stringify(socketInfoChat));
+            notifyDisconnectedClientsAfterChecking();
+
         } else if (obj_data.infoType === Chat.INFO_TYPE.message){    // 그냥 메시지면,
             await broadcastMessage(new Chat(id, nick, obj_data.message, Chat.INFO_TYPE.message, socket.remotePort, socket.remoteAddress));
             console.log(JSON.stringify(newChat));
@@ -148,6 +163,29 @@ const server = net.createServer((socket) => {
         console.log('클라이언트 수: ', clients.length);
     })
 });
+
+// 비정상 종료를 대비한 클라이언트 정보 외부 파일에 저장 및 clients[] 객체에 푸시.
+function registerClient(id, nick, socket){
+    const clientInfo = {
+        id: id,
+        nick: nick,
+        remoteAddress: socket.remoteAddress,
+        remotePort: socket.remotePort
+    };
+    appendClientInfo(JSON.stringify(clientInfo) + '\n');    // 동기적으로 작동.
+    clients.push(socket);
+}
+
+// 서버 재시작 후, 서버가 종료되어있는 동안 나간 클라이언트 목록 알림.
+function notifyDisconnectedClientsAfterChecking(){
+    countPreviousConnection++;
+    if(previousConnection === countPreviousConnection){
+        console.log('클라이언트 수: ', clients.length);
+        disconnectedClients.forEach(async (dc) => {
+            await broadcastMessage(new Chat(dc.id, dc.nick, `${dc.nick} 님이 대화방을 나가셨습니다.`, Chat.INFO_TYPE.inform, dc.remotePort, dc.remoteAddress));
+        })
+    }
+}
 
 /**
  * 모든 클라이언트들에게 메시지, 알림을 보내는 메서드.
