@@ -6,9 +6,9 @@ const { Mutex } = require('async-mutex');
 
 const ID = require('./js/id.js');
 const Chat = require('./js/chat.js');
-const { getServerInfo, getStateInfo, deleteAllClientsInfo, deleteClientsInfo, readClientsInfo, changeStateValueToAbnormal, appendClientInfo } = require('./js/files.js');
+const Client = require('./js/client.js');
+const { getServerInfo, getStateInfo, deleteAllClientsInfo, deleteClientInfo, readClientsInfo, changeStateValueToAbnormal, appendClientInfo } = require('./js/files.js');
 const { executeExceptionHandler } = require('./js/handler.js');
-const { log } = require('console');
 
 let host, port;
 const clients = [];
@@ -25,6 +25,7 @@ let previousConnection  = 0;
 let countPreviousConnection = 0;
 const disconnectedClients = [];
 
+// uncaughtException 처리 중.
 executeExceptionHandler();
 
 // 서버 정보 가져오기.
@@ -105,31 +106,17 @@ async function getStateInfoFromFiles(){
 const server = net.createServer((socket) => {
     console.log('클라이언트 연결 됨', socket.remoteAddress, ':', socket.remotePort);
     let id, nick;
+    let clientState;    // 서버는 수신을 한 블록에서 처리하므로 클라이언트 소켓이 끊겼을 때 닉네임 중복 체크용 소켓인지 채팅용 소켓인지 구분하기 위한 식별자.
 
     socket.on('data', async (data) => {
         const json_data = data.toString();
         const obj_data = JSON.parse(json_data);
         console.log('클라이언트로부터 받은 메시지: ', json_data);
 
-        // if(obj_data.infoType === Chat.INFO_TYPE.checkDuplicatedNick){
-        //     readClientsInfo()
-        //         .then(data => {
-        //             console.log('my-', data);
-        //             const isDuplicated = data.some(d => { 
-        //                 return d.nick === obj_data.nick;
-        //             });
+        if (obj_data.infoType === Chat.INFO_TYPE.message){    // 그냥 메시지면,
+            await broadcastMessage(new Chat(id, nick, obj_data.message, Chat.INFO_TYPE.message, socket.remotePort, socket.remoteAddress));
 
-        //             console.log('닉네임 중복 체크 값: ', isDuplicated);
-        //             socket.write(isDuplicated.toString());
-        //         })
-        //         .catch(e => {
-        //             console.error(e);
-        //         })
-            
-        //     return ;
-        // }
-
-        if(obj_data.infoType === Chat.INFO_TYPE.requestClientSocketInfoWithId){ // 아이디가 없는, 이제 막 연결한 유저면,
+        } else if(obj_data.infoType === Chat.INFO_TYPE.requestClientSocketInfoWithId){ // 아이디가 없는, 이제 막 연결한 유저면,
             // 로그인 기능 생략. 접속한 순서대로 id 발급.
             // 뮤텍스를 통해 동시성 문제 접근.
             const release = await mutex.acquire();
@@ -140,8 +127,8 @@ const server = net.createServer((socket) => {
             }
 
             nick = obj_data.nick;
-
             registerClient(id, nick, socket);
+            clientState = Client.STATE.chat;
 
             // clients[] 대신 socket으로 방금 접속한 이에게만 전송.
             const welcomeChat = new Chat(id, nick, `어서오세요 ${nick} 님 !`, Chat.INFO_TYPE.responseClientSocketInfoWithId, socket.remotePort, socket.remoteAddress);
@@ -149,39 +136,55 @@ const server = net.createServer((socket) => {
 
             // 입장 유저 제외 나머지 유저에게 새 유저 입장 알림.
             await broadcastMessage(new Chat(id, nick, `${nick}님이 대화방에 입장하셨습니다`, Chat.INFO_TYPE.inform, socket.remotePort, socket.remoteAddress), socket);
-
+            
             console.log('클라이언트 수: ', clients.length);
 
         } else if (obj_data.infoType === Chat.INFO_TYPE.requestClientSocketInfo){    // 서버 재시작으로 이미 아이디는 가지고 있다면,
             id = obj_data.id;
             nick = obj_data.nick;
-
             registerClient(id, nick, socket);
+            clientState = Client.STATE.chat;
 
             const socketInfoChat = new Chat(id, nick, '서버와 연결되었습니다.', Chat.INFO_TYPE.responseClientSocketInfo, socket.remotePort, socket.remoteAddress);
             socket.write(JSON.stringify(socketInfoChat));
             await notifyDisconnectedClientsAfterChecking();
+            
+        } else if(obj_data.infoType === Chat.INFO_TYPE.checkDuplicatedNick){    // 닉네임 중복체크.
+            clientState = Client.STATE.ready;
 
-        } else if (obj_data.infoType === Chat.INFO_TYPE.message){    // 그냥 메시지면,
-            await broadcastMessage(new Chat(id, nick, obj_data.message, Chat.INFO_TYPE.message, socket.remotePort, socket.remoteAddress));
+            readClientsInfo()
+                .then(data => {
+                    console.log('my-', data);
+                    const isDuplicated = data.some(d => { 
+                        return d.nick === obj_data.nick;
+                    });
+
+                    console.log('닉네임 중복 체크 값: ', isDuplicated);
+                    socket.write(isDuplicated.toString());
+                })
+                .catch(e => {
+                    console.error(e);
+                })
         }
     });
 
     // end -> 클라이언트가 소켓 연결을 닫을 때 발생.
     socket.on('end', async () => {
-        console.log(`${id}번 클라이언트 연결 종료`);
+        if(clientState === Client.STATE.chat){  // 연결 끊김에 대한 처리는 채팅 소켓에만.
+            console.log(`${id}번 클라이언트 연결 종료`);
 
-        // 먼저 클라이언트 목록에서 지우고,
-        const index = clients.indexOf(socket);
-        if (index !== -1) clients.splice(index, 1);
+            // 먼저 클라이언트 목록에서 지우고,
+            const index = clients.indexOf(socket);
+            if (index !== -1) clients.splice(index, 1);
 
-        // ref 파일 업데이트.
-        deleteClientsInfo(id);
+            // ref 파일 업데이트.
+            deleteClientInfo(id);
 
-        // 나머지 클라이언트들에게 알림.
-        await broadcastMessage(new Chat(id, nick, `${nick}님이 대화방을 나가셨습니다.`, Chat.INFO_TYPE.inform, socket.remotePort, socket.remoteAddress));
+            // 나머지 클라이언트들에게 알림.
+            await broadcastMessage(new Chat(id, nick, `${nick}님이 대화방을 나가셨습니다.`, Chat.INFO_TYPE.inform, socket.remotePort, socket.remoteAddress));
 
-        console.log('클라이언트 수: ', clients.length);
+            console.log('클라이언트 수: ', clients.length);
+        }
     })
 });
 

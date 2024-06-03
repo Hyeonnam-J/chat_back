@@ -8,6 +8,7 @@ const SERVER_INFO_PATH = '/home/hn/project/chat_etc/server.txt';
 const CLIENTS_INFO_PATH = '/home/hn/project/chat_etc/clients.txt';
 const STATE_INFO_PATH = '/home/hn/project/chat_etc/state.txt';
 
+// 서버 호스트, 포트 정보 가져오기.
 const getServerInfo = function(){
     return new Promise((resolve, rejects) => {
         fs.readFile(SERVER_INFO_PATH, UTF_8, (err, data) => {
@@ -29,6 +30,7 @@ const getServerInfo = function(){
     })
 }
 
+// 서버 시작 시 이전 상태와 이어지는지 식별.
 const getStateInfo = function() {
     return new Promise((resolve, rejects) => {
         fs.readFile(STATE_INFO_PATH, UTF_8, (err, data) => {
@@ -41,29 +43,7 @@ const getStateInfo = function() {
     })
 }
 
-const deleteAllClientsInfo = function() {
-    try{
-        fs.writeFileSync(CLIENTS_INFO_PATH, '', UTF_8);
-    } catch(e) {
-        console.error('파일 삭제 실패', e);
-    }
-}
-
-const deleteClientsInfo = function(id) {
-    let lines = fs.readFileSync(CLIENTS_INFO_PATH, UTF_8).split('\n');
-    let updatedLines = lines.filter(l => {
-        if(l.trim() === '') return false;
-
-        console.log('my-', l);
-        console.log('my-typeof', typeof l);
-
-        const obj_line = JSON.parse(l);
-        return obj_line.id !== id;
-    });
-
-    fs.writeFileSync(CLIENTS_INFO_PATH, updatedLines.join('\n') + '\n');
-}
-
+// 클라이언트 참조 파일 읽기.
 const readClientsInfo = function(){
     return new Promise((resolve, rejects) => {
         fs.readFile(CLIENTS_INFO_PATH, UTF_8, (err, data) => {
@@ -78,12 +58,34 @@ const readClientsInfo = function(){
     })
 }
 
-const changeStateValueToAbnormal = function() {
-    fs.writeFileSync(STATE_INFO_PATH, 'keep', UTF_8);
-}
-
+// 클라이언트 참조 파일에 지정 클라이언트 추가.
 const appendClientInfo = function(data){
     fs.appendFileSync(CLIENTS_INFO_PATH, data);
 }
 
-module.exports = { getServerInfo, getStateInfo, deleteAllClientsInfo, deleteClientsInfo, readClientsInfo, changeStateValueToAbnormal, appendClientInfo };
+// 클라이언트 참조 파일에 지정 클라이언트 삭제.
+const deleteClientInfo = function(id) {
+    readClientsInfo()
+        .then(data => {
+            const updatedData = data.filter(d => { return d.id !== id });
+            const updatedLines = updatedData.map(d => JSON.stringify(d));
+            fs.writeFileSync(CLIENTS_INFO_PATH, updatedLines.join('\n') + '\n');
+        })
+}
+
+// 클라이언트 참조 파일의 모든 클라이언트 삭제.
+const deleteAllClientsInfo = function() {
+    try{
+        fs.writeFileSync(CLIENTS_INFO_PATH, '', UTF_8);
+    } catch(e) {
+        console.error('파일 삭제 실패', e);
+    }
+}
+
+// 서버 다운 시 서버 상태 정보 변경.
+const changeStateValueToAbnormal = function() {
+    fs.writeFileSync(STATE_INFO_PATH, 'keep', UTF_8);
+}
+
+
+module.exports = { getServerInfo, getStateInfo, deleteAllClientsInfo, deleteClientInfo, readClientsInfo, changeStateValueToAbnormal, appendClientInfo };
