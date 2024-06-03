@@ -2,6 +2,7 @@
 
 class Chat{
     static INFO_TYPE = Object.freeze({
+        checkDuplicatedNick: 'checkDuplicatedNick',
         message: 'message',
         inform: 'inform',
         requestClientSocketInfoWithId: 'requestClientSocketInfoWithId',
@@ -11,7 +12,6 @@ class Chat{
     });
 
     /**
-     * 
      * @param {number} id 
      * @param {string} nick 
      * @param {string} message 

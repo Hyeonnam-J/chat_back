@@ -41,12 +41,27 @@ const getStateInfo = function() {
     })
 }
 
-const deleteClientsInfo = function() {
+const deleteAllClientsInfo = function() {
     try{
         fs.writeFileSync(CLIENTS_INFO_PATH, '', UTF_8);
     } catch(e) {
         console.error('파일 삭제 실패', e);
     }
+}
+
+const deleteClientsInfo = function(id) {
+    let lines = fs.readFileSync(CLIENTS_INFO_PATH, UTF_8).split('\n');
+    let updatedLines = lines.filter(l => {
+        if(l.trim() === '') return false;
+
+        console.log('my-', l);
+        console.log('my-typeof', typeof l);
+
+        const obj_line = JSON.parse(l);
+        return obj_line.id !== id;
+    });
+
+    fs.writeFileSync(CLIENTS_INFO_PATH, updatedLines.join('\n') + '\n');
 }
 
 const readClientsInfo = function(){
@@ -71,4 +86,4 @@ const appendClientInfo = function(data){
     fs.appendFileSync(CLIENTS_INFO_PATH, data);
 }
 
-module.exports = { getServerInfo, getStateInfo, deleteClientsInfo, readClientsInfo, changeStateValueToAbnormal, appendClientInfo };
+module.exports = { getServerInfo, getStateInfo, deleteAllClientsInfo, deleteClientsInfo, readClientsInfo, changeStateValueToAbnormal, appendClientInfo };

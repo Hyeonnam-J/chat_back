@@ -6,8 +6,9 @@ const { Mutex } = require('async-mutex');
 
 const ID = require('./js/id.js');
 const Chat = require('./js/chat.js');
-const { getServerInfo, getStateInfo, deleteClientsInfo, readClientsInfo, changeStateValueToAbnormal, appendClientInfo } = require('./js/files.js');
+const { getServerInfo, getStateInfo, deleteAllClientsInfo, deleteClientsInfo, readClientsInfo, changeStateValueToAbnormal, appendClientInfo } = require('./js/files.js');
 const { executeExceptionHandler } = require('./js/handler.js');
+const { log } = require('console');
 
 let host, port;
 const clients = [];
@@ -53,7 +54,7 @@ async function getStateInfoFromFiles(){
                 console.log('새롭게 시작 !');
 
                 // clients.txt 파일 초기화.
-                deleteClientsInfo();
+                deleteAllClientsInfo();
                 
                 return ;
             case 'keep':
@@ -66,7 +67,7 @@ async function getStateInfoFromFiles(){
                         console.log('previousConnection: ', previousConnection);
 
                         // 이전 정보를 data에 담은 후 clients.txt 파일 초기화.
-                        deleteClientsInfo();
+                        deleteAllClientsInfo();
 
                         console.log('지우기 전 가져온 데이터: ', data);
                         data.forEach(d => {
@@ -109,6 +110,24 @@ const server = net.createServer((socket) => {
         const json_data = data.toString();
         const obj_data = JSON.parse(json_data);
         console.log('클라이언트로부터 받은 메시지: ', json_data);
+
+        // if(obj_data.infoType === Chat.INFO_TYPE.checkDuplicatedNick){
+        //     readClientsInfo()
+        //         .then(data => {
+        //             console.log('my-', data);
+        //             const isDuplicated = data.some(d => { 
+        //                 return d.nick === obj_data.nick;
+        //             });
+
+        //             console.log('닉네임 중복 체크 값: ', isDuplicated);
+        //             socket.write(isDuplicated.toString());
+        //         })
+        //         .catch(e => {
+        //             console.error(e);
+        //         })
+            
+        //     return ;
+        // }
 
         if(obj_data.infoType === Chat.INFO_TYPE.requestClientSocketInfoWithId){ // 아이디가 없는, 이제 막 연결한 유저면,
             // 로그인 기능 생략. 접속한 순서대로 id 발급.
@@ -155,6 +174,9 @@ const server = net.createServer((socket) => {
         // 먼저 클라이언트 목록에서 지우고,
         const index = clients.indexOf(socket);
         if (index !== -1) clients.splice(index, 1);
+
+        // ref 파일 업데이트.
+        deleteClientsInfo(id);
 
         // 나머지 클라이언트들에게 알림.
         await broadcastMessage(new Chat(id, nick, `${nick}님이 대화방을 나가셨습니다.`, Chat.INFO_TYPE.inform, socket.remotePort, socket.remoteAddress));
