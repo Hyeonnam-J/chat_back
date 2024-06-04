@@ -1,8 +1,8 @@
 'use strict';
 
 const executeExceptionHandler = function(){
-    process.on('uncaughtException', err => {
-        console.log('uncaughtException: ', err);
+    process.on('uncaughtException', e => {
+        console.error('uncaughtException: ', e);
     });
 }
 

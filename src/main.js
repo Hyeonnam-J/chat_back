@@ -25,9 +25,6 @@ let previousConnection  = 0;
 let countPreviousConnection = 0;
 const disconnectedClients = [];
 
-// uncaughtException 처리 중.
-executeExceptionHandler();
-
 // 서버 정보 가져오기.
 getServerInfo()
     .then((response) => {
@@ -241,3 +238,6 @@ function sendMessage(client, message, exceptSocket){
 app.on('before-quit', () => {
     changeStateValueToKeep();
 });
+
+// uncaughtException 처리.
+executeExceptionHandler();
