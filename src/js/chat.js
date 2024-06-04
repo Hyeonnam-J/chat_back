@@ -1,6 +1,17 @@
 'use strict';
 
 class Chat{
+    /**
+     * 서버, 클라이언트 간 정보의 용도 식별자.
+     * 
+     * checkDuplicatedNick - 닉네임 체크.
+     * message - 유저들 간 채팅.
+     * inform - 서버 및 유저의 상태 변화 알림.
+     * requestClientSocketInfoWithId - 클라이언트가 자신의 아이디와 소켓 정보 요구.
+     * requestClientSocketInfo - 클라이언트가 자신의 소켓 정보 요구.
+     * responseClientSocketInfoWithId - 클라이언트 아이디와 소켓 정보 응답.
+     * responseClientSocketInfo - 클라이언트 소켓 정보 응답.
+     */
     static INFO_TYPE = Object.freeze({
         checkDuplicatedNick: 'checkDuplicatedNick',
         message: 'message',

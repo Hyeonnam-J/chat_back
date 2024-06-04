@@ -39,9 +39,8 @@ getServerInfo()
             console.log(`서버 실행 중 포트: ${port}, 호스트: ${host}`);
         });
     })
-    .catch((response) => {
-        console.log('서버 실행 실패 !');
-        console.log(response);
+    .catch((e) => {
+        console.error('서버 실행 실패-', e);
     });
 
 // 상태 정보 가져온 후 로직.
@@ -52,7 +51,7 @@ async function getStateInfoFromFiles(){
         switch(response.trim()){
             case '':
                 // 새롭게 개편 후 시작.
-                console.log('새롭게 시작 !');
+                console.log('새로운 서버 가동.');
 
                 // clients.txt 파일 초기화.
                 deleteAllClientsInfo();
@@ -60,7 +59,7 @@ async function getStateInfoFromFiles(){
                 return ;
             case 'keep':
                 // 이전과 연결된 시작.
-                console.log('이어서 시작 !');
+                console.log('이전 서버와 연동해서 가동.');
 
                 readClientsInfo()
                     .then(data => {
@@ -70,13 +69,12 @@ async function getStateInfoFromFiles(){
                         // 이전 정보를 data에 담은 후 clients.txt 파일 초기화.
                         deleteAllClientsInfo();
 
-                        console.log('지우기 전 가져온 데이터: ', data);
+                        console.log('연결할 이전 클라이언트 목록-', data);
                         data.forEach(d => {
                             const _socket = new net.Socket();
                             _socket.connect(d.remotePort, d.remoteAddress, () => {
-                                console.log('서버는 연결 신청 완료');
-
                                 _socket.destroy();
+                                console.log(`${d.remoteAddress}:${d.remotePort} / ${d.id} / ${d.nick} 연걸 신청.`);
                             });
 
                             // 서버가 재시작 했는데 그 전에 클라이언트들이 나가버린 경우.
@@ -88,51 +86,46 @@ async function getStateInfoFromFiles(){
                         })
                     })
                     .catch(e => {
-                        console.log(e);
-                    })
-                    .finally(f => {
-                        console.log('finally-');
-                        return ;
+                        console.error('readClientsInfo 중 에러-', e);
                     })
         }
     } catch(e) {
-        console.log('상태 정보를 불러오지 못했습니다.');
-        console.log(e);
+        console.log('getStateInfoFromFiles 중 에러-', e);
     }
 }
 
 // 통신 로직.
 // 클라이언트 연결될 때마다 실행
 const server = net.createServer((socket) => {
-    console.log('클라이언트 연결 됨', socket.remoteAddress, ':', socket.remotePort);
+    console.log('클라이언트 연결 완료-', socket.remoteAddress, ':', socket.remotePort);
+
     let id, nick;
     let clientState;    // 서버는 수신을 한 블록에서 처리하므로 클라이언트 소켓이 끊겼을 때 닉네임 중복 체크용 소켓인지 채팅용 소켓인지 구분하기 위한 식별자.
 
     socket.on('data', async (data) => {
         const json_data = data.toString();
         const obj_data = JSON.parse(json_data);
-        console.log('클라이언트로부터 받은 메시지: ', json_data);
+        console.log('클라이언트로부터 받은 메시지-', json_data);
 
         // 빈도 높은 대로 분기 처리.
         // 실제 운영 시에는 메시지용 서버 따로 사전 작업 처리용 서버 따로?
         if (obj_data.infoType === Chat.INFO_TYPE.message){    // 그냥 메시지면,
-            await broadcastMessage(new Chat(id, nick, obj_data.message, Chat.INFO_TYPE.message, socket.remotePort, socket.remoteAddress));
+            const newChat = new Chat(id, nick, obj_data.message, Chat.INFO_TYPE.message, socket.remotePort, socket.remoteAddress);
+            await broadcastMessage(newChat);
 
         } else if(obj_data.infoType === Chat.INFO_TYPE.checkDuplicatedNick){    // 닉네임 중복체크.
             clientState = Client.STATE.ready;
 
             readClientsInfo()
                 .then(data => {
-                    console.log('my-', data);
                     const isDuplicated = data.some(d => { 
                         return d.nick === obj_data.nick;
                     });
 
-                    console.log('닉네임 중복 체크 값: ', isDuplicated);
                     socket.write(isDuplicated.toString());
                 })
                 .catch(e => {
-                    console.error(e);
+                    console.error('readClientsInfo 중 에러-', e);
                 })
         } else if(obj_data.infoType === Chat.INFO_TYPE.requestClientSocketInfoWithId){ // 아이디가 없는, 이제 막 연결한 유저면,
             // 로그인 기능 생략. 접속한 순서대로 id 발급.
@@ -151,6 +144,7 @@ const server = net.createServer((socket) => {
             // clients[] 대신 socket으로 방금 접속한 이에게만 전송.
             const welcomeChat = new Chat(id, nick, `어서오세요 ${nick} 님 !`, Chat.INFO_TYPE.responseClientSocketInfoWithId, socket.remotePort, socket.remoteAddress);
             socket.write(JSON.stringify(welcomeChat));
+            console.log('환영인사-', welcomeChat);
 
             // 입장 유저 제외 나머지 유저에게 새 유저 입장 알림.
             await broadcastMessage(new Chat(id, nick, `${nick}님이 대화방에 입장하셨습니다`, Chat.INFO_TYPE.inform, socket.remotePort, socket.remoteAddress), socket);
@@ -165,6 +159,7 @@ const server = net.createServer((socket) => {
 
             const socketInfoChat = new Chat(id, nick, '서버와 연결되었습니다.', Chat.INFO_TYPE.responseClientSocketInfo, socket.remotePort, socket.remoteAddress);
             socket.write(JSON.stringify(socketInfoChat));
+            console.log('재시작 후 연결 알림-', socketInfoChat);
             await notifyDisconnectedClientsAfterChecking();
         } 
     });
@@ -225,7 +220,7 @@ function sendMessage(client, message, exceptSocket){
     return new Promise((resolve, rejects) => {
         if(client !== exceptSocket){
             client.write(JSON.stringify(message), (err) => {
-                console.log('서버가 보낸 메시지: ', JSON.stringify(message));
+                console.log('서버가 보낸 메시지-', message);
 
                 if(err) rejects(err);
                 else resolve();
