@@ -43,51 +43,46 @@ getServerInfo()
 // 상태 정보 가져온 후 로직.
 getStateInfoFromFiles();
 async function getStateInfoFromFiles(){
-    try {
-        const response = await getStateInfo();
-        switch(response.trim()){
-            case '':
-                // 새롭게 개편 후 시작.
-                console.log('새로운 서버 가동.');
+    const response = await getStateInfo();
 
-                // clients.txt 파일 초기화.
-                deleteAllClientsInfo();
-                
-                return ;
-            case 'keep':
-                // 이전과 연결된 시작.
-                console.log('이전 서버와 연동해서 가동.');
+    switch(response.trim()){
+        case '':
+            // 새롭게 개편 후 시작.
+            console.log('새로운 서버 가동.');
 
-                readClientsInfo()
-                    .then(data => {
-                        previousConnection = data.length;
-                        console.log('previousConnection: ', previousConnection);
+            // clients.txt 파일 초기화.
+            deleteAllClientsInfo();
+            
+            return ;
+        case 'keep':
+            // 이전과 연결된 시작.
+            console.log('이전 서버와 연동해서 가동.');
 
-                        // 이전 정보를 data에 담은 후 clients.txt 파일 초기화.
-                        deleteAllClientsInfo();
+            readClientsInfo()
+                .then(data => {
+                    previousConnection = data.length;
 
-                        console.log('연결할 이전 클라이언트 목록-', data);
-                        data.forEach(d => {
-                            const _socket = new net.Socket();
-                            _socket.connect(d.remotePort, d.remoteAddress, () => {
-                                _socket.destroy();
-                                console.log(`${d.remoteAddress}:${d.remotePort} / ${d.id} / ${d.nick} 연걸 신청.`);
-                            });
+                    // 이전 정보를 data에 담은 후 clients.txt 파일 초기화.
+                    deleteAllClientsInfo();
 
-                            // 서버가 재시작 했는데 그 전에 클라이언트들이 나가버린 경우.
-                            _socket.on('error', async (e) => {
-                                console.log(`서버 시작 전에 클라이언트 ${d.remoteAddress}:${d.remotePort} / ${d.id} / ${d.nick} 님, 앱 종료..`);
-                                disconnectedClients.push(d);
-                                await notifyDisconnectedClientsAfterChecking();
-                            })
+                    console.log('연결할 이전 클라이언트 목록-', data);
+                    data.forEach(d => {
+                        const _socket = new net.Socket();
+                        _socket.connect(d.remotePort, d.remoteAddress, () => {
+                            _socket.destroy();
+                            console.log(`${d.remoteAddress}:${d.remotePort} / ${d.id} / ${d.nick} 연걸 신청.`);
+                        });
+
+                        // 서버가 재시작 했는데 그 전에 클라이언트들이 나가버린 경우.
+                        _socket.on('error', async (e) => {
+                            console.log(`서버 시작 전에 클라이언트 ${d.remoteAddress}:${d.remotePort} / ${d.id} / ${d.nick} 님, 앱 종료..`);
+                            disconnectedClients.push(d);
+                            await notifyDisconnectedClientsAfterChecking();
                         })
                     })
-                    .catch(e => {
-                        console.error('readClientsInfo 중 에러-', e);
-                    })
-        }
-    } catch(e) {
-        console.log('getStateInfoFromFiles 중 에러-', e);
+                })
+                
+                return ;
     }
 }
 
@@ -120,9 +115,6 @@ const server = net.createServer((socket) => {
                     });
 
                     socket.write(isDuplicated.toString());
-                })
-                .catch(e => {
-                    console.error('readClientsInfo 중 에러-', e);
                 })
         } else if(obj_data.infoType === Chat.INFO_TYPE.requestClientSocketInfoWithId){ // 아이디가 없는, 이제 막 연결한 유저면,
             // 로그인 기능 생략. 접속한 순서대로 id 발급.
