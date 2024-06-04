@@ -7,7 +7,7 @@ const { Mutex } = require('async-mutex');
 const ID = require('./js/id.js');
 const Chat = require('./js/chat.js');
 const Client = require('./js/client.js');
-const { getServerInfo, getStateInfo, deleteAllClientsInfo, deleteClientInfo, readClientsInfo, changeStateValueToAbnormal, appendClientInfo } = require('./js/files.js');
+const { getServerInfo, getStateInfo, deleteAllClientsInfo, deleteClientInfo, readClientsInfo, appendClientInfo, changeStateValueToKeep } = require('./js/files.js');
 const { executeExceptionHandler } = require('./js/handler.js');
 
 let host, port;
@@ -113,9 +113,27 @@ const server = net.createServer((socket) => {
         const obj_data = JSON.parse(json_data);
         console.log('클라이언트로부터 받은 메시지: ', json_data);
 
+        // 빈도 높은 대로 분기 처리.
+        // 실제 운영 시에는 메시지용 서버 따로 사전 작업 처리용 서버 따로?
         if (obj_data.infoType === Chat.INFO_TYPE.message){    // 그냥 메시지면,
             await broadcastMessage(new Chat(id, nick, obj_data.message, Chat.INFO_TYPE.message, socket.remotePort, socket.remoteAddress));
 
+        } else if(obj_data.infoType === Chat.INFO_TYPE.checkDuplicatedNick){    // 닉네임 중복체크.
+            clientState = Client.STATE.ready;
+
+            readClientsInfo()
+                .then(data => {
+                    console.log('my-', data);
+                    const isDuplicated = data.some(d => { 
+                        return d.nick === obj_data.nick;
+                    });
+
+                    console.log('닉네임 중복 체크 값: ', isDuplicated);
+                    socket.write(isDuplicated.toString());
+                })
+                .catch(e => {
+                    console.error(e);
+                })
         } else if(obj_data.infoType === Chat.INFO_TYPE.requestClientSocketInfoWithId){ // 아이디가 없는, 이제 막 연결한 유저면,
             // 로그인 기능 생략. 접속한 순서대로 id 발급.
             // 뮤텍스를 통해 동시성 문제 접근.
@@ -148,24 +166,7 @@ const server = net.createServer((socket) => {
             const socketInfoChat = new Chat(id, nick, '서버와 연결되었습니다.', Chat.INFO_TYPE.responseClientSocketInfo, socket.remotePort, socket.remoteAddress);
             socket.write(JSON.stringify(socketInfoChat));
             await notifyDisconnectedClientsAfterChecking();
-            
-        } else if(obj_data.infoType === Chat.INFO_TYPE.checkDuplicatedNick){    // 닉네임 중복체크.
-            clientState = Client.STATE.ready;
-
-            readClientsInfo()
-                .then(data => {
-                    console.log('my-', data);
-                    const isDuplicated = data.some(d => { 
-                        return d.nick === obj_data.nick;
-                    });
-
-                    console.log('닉네임 중복 체크 값: ', isDuplicated);
-                    socket.write(isDuplicated.toString());
-                })
-                .catch(e => {
-                    console.error(e);
-                })
-        }
+        } 
     });
 
     // end -> 클라이언트가 소켓 연결을 닫을 때 발생.
@@ -241,8 +242,8 @@ function sendMessage(client, message, exceptSocket){
  * 정상 종료 시에는 state.txt의 값을 비워줘야 하지만
  * 24시 채팅 앱이라면 종료는 언제나 비정상 종료기 때문에..
  * 
- * 굳이? 그냥 참조하는 데이터를 keep으로 바꿔놓으면 되는데.
+ * 굳이 필요할까. 그냥 참조하는 데이터를 keep으로 바꿔놓으면 되는데.
  */
-// app.on('before-quit', () => {
-//     changeStateValueToAbnormal();
-// });
+app.on('before-quit', () => {
+    changeStateValueToKeep();
+});

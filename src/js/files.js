@@ -83,9 +83,8 @@ const deleteAllClientsInfo = function() {
 }
 
 // 서버 다운 시 서버 상태 정보 변경.
-const changeStateValueToAbnormal = function() {
+const changeStateValueToKeep = function() {
     fs.writeFileSync(STATE_INFO_PATH, 'keep', UTF_8);
 }
 
-
-module.exports = { getServerInfo, getStateInfo, deleteAllClientsInfo, deleteClientInfo, readClientsInfo, changeStateValueToAbnormal, appendClientInfo };
+module.exports = { getServerInfo, getStateInfo, deleteAllClientsInfo, deleteClientInfo, readClientsInfo, appendClientInfo, changeStateValueToKeep };
