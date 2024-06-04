@@ -7,7 +7,7 @@ const { Mutex } = require('async-mutex');
 const ID = require('./js/id.js');
 const Chat = require('./js/chat.js');
 const Client = require('./js/client.js');
-const { getServerInfo, getStateInfo, deleteAllClientsInfo, deleteClientInfo, readClientsInfo, appendClientInfo, changeStateValueToKeep } = require('./js/files.js');
+const { getServerInfo, getStateInfo, readClientsInfo, appendClientInfo, deleteClientInfo, deleteAllClientsInfo,  readLastIdInfo, writeLastIdInfo, deleteIdInfo, changeStateValueToKeep } = require('./js/files.js');
 const { executeExceptionHandler } = require('./js/handler.js');
 
 let host, port;
@@ -50,19 +50,26 @@ async function getStateInfoFromFiles(){
             // 새롭게 개편 후 시작.
             console.log('새로운 서버 가동.');
 
-            // clients.txt 파일 초기화.
+            // 파일 초기화.
             deleteAllClientsInfo();
+            deleteIdInfo();
             
-            return ;
+            break ;
         case 'keep':
             // 이전과 연결된 시작.
             console.log('이전 서버와 연동해서 가동.');
+
+            readLastIdInfo()
+                .then(id => {
+                    ID.countId = parseInt(id);
+                })
 
             readClientsInfo()
                 .then(data => {
                     previousConnection = data.length;
 
                     // 이전 정보를 data에 담은 후 clients.txt 파일 초기화.
+                    // 다시 연결한 클라이언트는 clients[]에 push 되면서 참조용 파일에 다시 기록된다.
                     deleteAllClientsInfo();
 
                     console.log('연결할 이전 클라이언트 목록-', data);
@@ -82,7 +89,7 @@ async function getStateInfoFromFiles(){
                     })
                 })
                 
-                return ;
+                break ;
     }
 }
 
@@ -115,13 +122,14 @@ const server = net.createServer((socket) => {
                     });
 
                     socket.write(isDuplicated.toString());
+                    console.log('닉네임 중복체크 응답-', isDuplicated.toString());
                 })
         } else if(obj_data.infoType === Chat.INFO_TYPE.requestClientSocketInfoWithId){ // 아이디가 없는, 이제 막 연결한 유저면,
             // 로그인 기능 생략. 접속한 순서대로 id 발급.
             // 뮤텍스를 통해 동시성 문제 접근.
             const release = await mutex.acquire();
             try{
-                id = ID.countId++;
+                id = ++ID.countId;
             } finally {
                 release();
             }
@@ -143,7 +151,7 @@ const server = net.createServer((socket) => {
         } else if (obj_data.infoType === Chat.INFO_TYPE.requestClientSocketInfo){    // 서버 재시작으로 이미 아이디는 가지고 있다면,
             id = obj_data.id;
             nick = obj_data.nick;
-            registerClient(id, nick, socket);
+            registerPreviousClient(id, nick, socket);
             clientState = Client.STATE.chat;
 
             const socketInfoChat = new Chat(id, nick, '서버와 연결되었습니다.', Chat.INFO_TYPE.responseClientSocketInfo, socket.remotePort, socket.remoteAddress);
@@ -173,8 +181,21 @@ const server = net.createServer((socket) => {
     })
 });
 
-// 비정상 종료를 대비한 클라이언트 정보 외부 파일에 저장 및 clients[] 객체에 푸시.
+// 클라이언트 정보 등록 및 아이디 발급 값 저장.
 function registerClient(id, nick, socket){
+    const clientInfo = {
+        id: id,
+        nick: nick,
+        remoteAddress: socket.remoteAddress,
+        remotePort: socket.remotePort
+    };
+    appendClientInfo(JSON.stringify(clientInfo) + '\n');    // 동기적으로 작동.
+    writeLastIdInfo(id);
+    clients.push(socket);
+}
+
+// 이전 클라이언트 정보 다시 등록.
+function registerPreviousClient(id, nick, socket){
     const clientInfo = {
         id: id,
         nick: nick,

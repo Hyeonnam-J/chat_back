@@ -7,6 +7,7 @@ const UTF_8 = 'utf-8';
 const SERVER_INFO_PATH = '/home/hn/project/chat_etc/server.txt';
 const CLIENTS_INFO_PATH = '/home/hn/project/chat_etc/clients.txt';
 const STATE_INFO_PATH = '/home/hn/project/chat_etc/state.txt';
+const ID_INFO_PATH = '/home/hn/project/chat_etc/id.txt';
 
 // 서버 호스트, 포트 정보 가져오기.
 const getServerInfo = function(){
@@ -82,9 +83,36 @@ const deleteAllClientsInfo = function() {
     }
 }
 
+// 아이디 발급 값 가져오기.
+const readLastIdInfo = function(){
+    return new Promise((resolve, rejects) => {
+        fs.readFile(ID_INFO_PATH, UTF_8, (err, value) => {
+            if(err){
+                rejects(err);
+            } else {
+                resolve(value);
+            }
+        })
+    })
+}
+
+// 아이디 발급 값 업데이트.
+const writeLastIdInfo = function(id){
+    fs.writeFileSync(ID_INFO_PATH, id.toString());
+}
+
+// 아이디 발급 값 초기화.
+const deleteIdInfo = function() {
+    try{
+        fs.writeFileSync(ID_INFO_PATH, '', UTF_8);
+    } catch(e) {
+        console.error('파일 삭제 실패', e);
+    }
+}
+
 // 서버 다운 시 서버 상태 정보 변경.
 const changeStateValueToKeep = function() {
     fs.writeFileSync(STATE_INFO_PATH, 'keep', UTF_8);
 }
 
-module.exports = { getServerInfo, getStateInfo, deleteAllClientsInfo, deleteClientInfo, readClientsInfo, appendClientInfo, changeStateValueToKeep };
+module.exports = { getServerInfo, getStateInfo, readClientsInfo, appendClientInfo, deleteClientInfo, deleteAllClientsInfo,  readLastIdInfo, writeLastIdInfo, deleteIdInfo, changeStateValueToKeep };
