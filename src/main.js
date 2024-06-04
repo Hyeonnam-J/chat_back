@@ -97,7 +97,7 @@ async function getStateInfoFromFiles(){
 // 통신 로직.
 // 클라이언트 연결될 때마다 실행
 const server = net.createServer((socket) => {
-    console.log('클라이언트 연결 완료-', socket.remoteAddress, ':', socket.remotePort);
+    console.log('클라이언트 연결 시도-', socket.remoteAddress, ':', socket.remotePort);
 
     let id, nick;
     let clientState;    // 서버는 수신을 한 블록에서 처리하므로 클라이언트 소켓이 끊겼을 때 닉네임 중복 체크용 소켓인지 채팅용 소켓인지 구분하기 위한 식별자.
@@ -213,6 +213,7 @@ async function notifyDisconnectedClientsAfterChecking(){
 async function broadcastMessage(message, exceptSocket = null){
     const promises = clients.map(c => sendMessage(c, message, exceptSocket));
     await Promise.all(promises);
+    console.log('서버가 보낸 메시지-', message);
 }
 
 // 단일 클라이언트 소켓에 메시지 전송.
@@ -220,8 +221,6 @@ function sendMessage(client, message, exceptSocket){
     return new Promise((resolve, rejects) => {
         if(client !== exceptSocket){
             client.write(JSON.stringify(message), (err) => {
-                console.log('서버가 보낸 메시지-', message);
-
                 if(err) rejects(err);
                 else resolve();
             });
