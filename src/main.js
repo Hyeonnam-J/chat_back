@@ -60,7 +60,9 @@ async function getStateInfoFromFiles(){
             console.log('이전 서버와 연동해서 가동.');
 
             await Promise.all([
-                readLastIdInfo().then(id => { ID.countId = parseInt(id) }),
+                readLastIdInfo().then(id => { 
+                    ID.setCurrentId(parseInt(id));
+                }),
                 readClientsInfo().then(data => {
                     previousConnection = data.length;
 
@@ -86,32 +88,6 @@ async function getStateInfoFromFiles(){
                 })
             ])
 
-            // readLastIdInfo().then(id => { ID.countId = parseInt(id) });
-            // readClientsInfo()
-            //     .then(data => {
-            //         previousConnection = data.length;
-
-            //         // 이전 정보를 data에 담은 후 clients.txt 파일 초기화.
-            //         // 다시 연결한 클라이언트는 clients[]에 push 되면서 참조용 파일에 다시 기록된다.
-            //         deleteAllClientsInfo();
-
-            //         console.log('연결할 이전 클라이언트 목록-', data);
-            //         data.forEach(d => {
-            //             const _socket = new net.Socket();
-            //             _socket.connect(d.remotePort, d.remoteAddress, () => {
-            //                 _socket.destroy();
-            //                 console.log(`${d.remoteAddress}:${d.remotePort} / ${d.id} / ${d.nick} 연걸 신청.`);
-            //             });
-
-            //             // 서버가 재시작 했는데 그 전에 클라이언트들이 나가버린 경우.
-            //             _socket.on('error', async (e) => {
-            //                 console.log(`서버 시작 전에 클라이언트 ${d.remoteAddress}:${d.remotePort} / ${d.id} / ${d.nick} 님, 앱 종료..`);
-            //                 disconnectedClients.push(d);
-            //                 await notifyDisconnectedClientsAfterChecking();
-            //             })
-            //         })
-            //     });
-                
             break ;
     }
 }
@@ -152,7 +128,7 @@ const server = net.createServer((socket) => {
             // 뮤텍스를 통해 동시성 문제 접근.
             const release = await mutex.acquire();
             try{
-                id = ++ID.countId;
+                id = ID.getNextId();
             } finally {
                 release();
             }
