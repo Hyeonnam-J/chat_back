@@ -4,7 +4,7 @@ const { createLogger, format, transports } = require('winston');
 const { combine, timestamp, label, printf, colorize } = format;
 const DailyRotateFile = require('winston-daily-rotate-file');
 
-const LOG_PATH = `log/${getCurrentMonth()}`;
+const LOG_PATH = `logs/${getCurrentMonth()}`;
 
 // custom log level.
 const myLevels = {
@@ -23,8 +23,12 @@ const myLevels = {
 };
 
 // 로그 형식.
-const myFormat = printf(({ label, timestamp, level, message }) => {
-    return `[${label}] ${timestamp} (${level}) ${message}`;
+const myFormat = printf(({ label, timestamp, level, message, ...metadata }) => {
+    let _log = `[${label}] ${timestamp} (${level}) ${message}`;
+    if(Object.keys(metadata).length){
+        _log += `${JSON.stringify(metadata)}`;
+    }
+    return _log;
 });
 
 const logger = createLogger({

@@ -38,7 +38,7 @@ getServerInfo()
         });
     })
     .catch((e) => {
-        logger.error('서버 실행 실패-', e);
+        logger.error(`서버 실행 실패 - ${e}`);
     });
 
 // 상태 정보 가져온 후 로직.
@@ -71,7 +71,7 @@ async function getStateInfoFromFiles(){
                     // 다시 연결한 클라이언트는 clients[]에 push 되면서 참조용 파일에 다시 기록된다.
                     deleteAllClientsInfo();
 
-                    logger.info('연결할 이전 클라이언트 목록-', data);
+                    logger.info(`연결할 이전 클라이언트 목록 - ${data}`);
                     data.forEach(d => {
                         const _socket = new net.Socket();
                         _socket.connect(d.remotePort, d.remoteAddress, () => {
@@ -96,7 +96,7 @@ async function getStateInfoFromFiles(){
 // 통신 로직.
 // 클라이언트 연결될 때마다 실행
 const server = net.createServer((socket) => {
-    logger.info('클라이언트 연결 시도-', socket.remoteAddress, ':', socket.remotePort);
+    logger.info(`클라이언트 연결 시도-${socket.remoteAddress}:${socket.remotePort}`);
 
     let id, nick;
     let clientState;    // 서버는 수신을 한 블록에서 처리하므로 클라이언트 소켓이 끊겼을 때 닉네임 중복 체크용 소켓인지 채팅용 소켓인지 구분하기 위한 식별자.
@@ -104,7 +104,7 @@ const server = net.createServer((socket) => {
     socket.on('data', async (data) => {
         const json_data = data.toString();
         const obj_data = JSON.parse(json_data);
-        logger.info('클라이언트로부터 받은 메시지-', json_data);
+        logger.info(`클라이언트로부터 받은 메시지 - ${obj_data}`);
 
         // 빈도 높은 대로 분기 처리.
         // 실제 운영 시에는 메시지용 서버 따로 사전 작업 처리용 서버 따로?
@@ -122,7 +122,7 @@ const server = net.createServer((socket) => {
                     });
 
                     socket.write(isDuplicated.toString());
-                    logger.info('닉네임 중복체크 응답-', isDuplicated.toString());
+                    logger.info(`닉네임 중복체크 응답 - ${isDuplicated.toString()}`);
                 })
         } else if(obj_data.infoType === Chat.INFO_TYPE.requestClientSocketInfoWithId){ // 아이디가 없는, 이제 막 연결한 유저면,
             // 로그인 기능 생략. 접속한 순서대로 id 발급.
@@ -141,12 +141,12 @@ const server = net.createServer((socket) => {
             // clients[] 대신 socket으로 방금 접속한 이에게만 전송.
             const welcomeChat = new Chat(id, nick, `어서오세요 ${nick} 님 !`, Chat.INFO_TYPE.responseClientSocketInfoWithId, socket.remotePort, socket.remoteAddress);
             socket.write(JSON.stringify(welcomeChat));
-            logger.info('환영인사-', welcomeChat);
+            logger.info(`환영인사 - ${welcomeChat}`);
 
             // 입장 유저 제외 나머지 유저에게 새 유저 입장 알림.
             await broadcastMessage(new Chat(id, nick, `${nick}님이 대화방에 입장하셨습니다`, Chat.INFO_TYPE.inform, socket.remotePort, socket.remoteAddress), socket);
             
-            logger.info('클라이언트 수: ', clients.length);
+            logger.info(`클라이언트 수 - ${clients.length}`);
 
         } else if (obj_data.infoType === Chat.INFO_TYPE.requestClientSocketInfo){    // 서버 재시작으로 이미 아이디는 가지고 있다면,
             id = obj_data.id;
@@ -156,7 +156,7 @@ const server = net.createServer((socket) => {
 
             const socketInfoChat = new Chat(id, nick, '서버와 연결되었습니다.', Chat.INFO_TYPE.responseClientSocketInfo, socket.remotePort, socket.remoteAddress);
             socket.write(JSON.stringify(socketInfoChat));
-            logger.info('재시작 후 연결 알림-', socketInfoChat);
+            logger.info(`재시작 후 연결 알림 - ${socketInfoChat}`);
             await notifyDisconnectedClientsAfterChecking();
         } 
     });
@@ -176,7 +176,7 @@ const server = net.createServer((socket) => {
             // 나머지 클라이언트들에게 알림.
             await broadcastMessage(new Chat(id, nick, `${nick}님이 대화방을 나가셨습니다.`, Chat.INFO_TYPE.inform, socket.remotePort, socket.remoteAddress));
 
-            logger.info('클라이언트 수: ', clients.length);
+            logger.info(`클라이언트 수 - ${clients.length}`);
         }
     })
 });
@@ -223,7 +223,7 @@ async function notifyDisconnectedClientsAfterChecking(){
 async function broadcastMessage(message, exceptSocket = null){
     const promises = clients.map(c => sendMessage(c, message, exceptSocket));
     await Promise.all(promises);
-    logger.info('서버가 보낸 메시지-', message);
+    logger.info(`서버가 보낸 메시지 - ${message}`);
 }
 
 // 단일 클라이언트 소켓에 메시지 전송.
