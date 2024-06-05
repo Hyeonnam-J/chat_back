@@ -9,6 +9,7 @@ const Chat = require('./js/chat.js');
 const Client = require('./js/client.js');
 const { getServerInfo, getStateInfo, readClientsInfo, appendClientInfo, deleteClientInfo, deleteAllClientsInfo,  readLastIdInfo, writeLastIdInfo, deleteIdInfo, changeStateValueToKeep } = require('./js/files.js');
 const { executeExceptionHandler } = require('./js/handler.js');
+const logger = require('./logger.js');
 
 let host, port;
 const clients = [];
@@ -24,6 +25,11 @@ const mutex = new Mutex();  // 전역적으로 하나의 뮤텍스를 공유하�
 let previousConnection  = 0;
 let countPreviousConnection = 0;
 const disconnectedClients = [];
+
+logger.error('test-error');
+logger.warn('test-warn');
+logger.info('test-info');
+logger.debug('test-debug');
 
 // 서버 정보 가져오기.
 getServerInfo()
@@ -247,9 +253,9 @@ function sendMessage(client, message, exceptSocket){
  * 
  * 굳이 필요할까. 그냥 참조하는 데이터를 keep으로 바꿔놓으면 되는데.
  */
-app.on('before-quit', () => {
-    changeStateValueToKeep();
-});
+// app.on('before-quit', () => {
+//     changeStateValueToKeep();
+// });
 
 // uncaughtException 처리.
 executeExceptionHandler();

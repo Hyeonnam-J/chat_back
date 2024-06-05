@@ -24,6 +24,8 @@
     },
     "dependencies": {
         "async-mutex": "^0.5.0",
-        "electron-squirrel-startup": "^1.0.1"
+        "electron-squirrel-startup": "^1.0.1",
+        "winston": "^3.13.0",
+        "winston-daily-rotate-file": "^5.0.0"
     }
 }
