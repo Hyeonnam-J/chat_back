@@ -2,15 +2,15 @@
 
 const executeExceptionHandler = function(){
     process.on('uncaughtException', e => {
-        console.error('uncaughtException: ', e);
+        logger.error('uncaughtException: ', e);
     });
 
     process.on('unhandlerRejection', e => {
-        console.error('unhandlerRejection: ', e);
+        logger.error('unhandlerRejection: ', e);
     });
 
     process.on('warning', e => {
-        console.warn('warning: ', e);
+        logger.warn('warning: ', e);
     });
 }
 

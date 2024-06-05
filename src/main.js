@@ -26,11 +26,6 @@ let previousConnection  = 0;
 let countPreviousConnection = 0;
 const disconnectedClients = [];
 
-logger.error('test-error');
-logger.warn('test-warn');
-logger.info('test-info');
-logger.debug('test-debug');
-
 // 서버 정보 가져오기.
 getServerInfo()
     .then((response) => {
@@ -39,11 +34,11 @@ getServerInfo()
 
         // 실행 알림 출력
         server.listen(port, host, () => {
-            console.log(`서버 실행 중 포트: ${port}, 호스트: ${host}`);
+            logger.info(`서버 실행 중 포트: ${port}, 호스트: ${host}`);
         });
     })
     .catch((e) => {
-        console.error('서버 실행 실패-', e);
+        logger.error('서버 실행 실패-', e);
     });
 
 // 상태 정보 가져온 후 로직.
@@ -54,7 +49,7 @@ async function getStateInfoFromFiles(){
     switch(response.trim()){
         case '':
             // 새롭게 개편 후 시작.
-            console.log('새로운 서버 가동.');
+            logger.info('새로운 서버 가동.');
 
             // 파일 초기화.
             deleteAllClientsInfo();
@@ -63,7 +58,7 @@ async function getStateInfoFromFiles(){
             break ;
         case 'keep':
             // 이전과 연결된 시작.
-            console.log('이전 서버와 연동해서 가동.');
+            logger.info('이전 서버와 연동해서 가동.');
 
             await Promise.all([
                 readLastIdInfo().then(id => { 
@@ -76,17 +71,17 @@ async function getStateInfoFromFiles(){
                     // 다시 연결한 클라이언트는 clients[]에 push 되면서 참조용 파일에 다시 기록된다.
                     deleteAllClientsInfo();
 
-                    console.log('연결할 이전 클라이언트 목록-', data);
+                    logger.info('연결할 이전 클라이언트 목록-', data);
                     data.forEach(d => {
                         const _socket = new net.Socket();
                         _socket.connect(d.remotePort, d.remoteAddress, () => {
                             _socket.destroy();
-                            console.log(`${d.remoteAddress}:${d.remotePort} / ${d.id} / ${d.nick} 연걸 신청.`);
+                            logger.info(`${d.remoteAddress}:${d.remotePort} / ${d.id} / ${d.nick} 연걸 신청.`);
                         });
 
                         // 서버가 재시작 했는데 그 전에 클라이언트들이 나가버린 경우.
                         _socket.on('error', async (e) => {
-                            console.log(`서버 시작 전에 클라이언트 ${d.remoteAddress}:${d.remotePort} / ${d.id} / ${d.nick} 님, 앱 종료..`);
+                            logger.info(`서버 시작 전에 클라이언트 ${d.remoteAddress}:${d.remotePort} / ${d.id} / ${d.nick} 님, 앱 종료..`);
                             disconnectedClients.push(d);
                             await notifyDisconnectedClientsAfterChecking();
                         })
@@ -101,7 +96,7 @@ async function getStateInfoFromFiles(){
 // 통신 로직.
 // 클라이언트 연결될 때마다 실행
 const server = net.createServer((socket) => {
-    console.log('클라이언트 연결 시도-', socket.remoteAddress, ':', socket.remotePort);
+    logger.info('클라이언트 연결 시도-', socket.remoteAddress, ':', socket.remotePort);
 
     let id, nick;
     let clientState;    // 서버는 수신을 한 블록에서 처리하므로 클라이언트 소켓이 끊겼을 때 닉네임 중복 체크용 소켓인지 채팅용 소켓인지 구분하기 위한 식별자.
@@ -109,7 +104,7 @@ const server = net.createServer((socket) => {
     socket.on('data', async (data) => {
         const json_data = data.toString();
         const obj_data = JSON.parse(json_data);
-        console.log('클라이언트로부터 받은 메시지-', json_data);
+        logger.info('클라이언트로부터 받은 메시지-', json_data);
 
         // 빈도 높은 대로 분기 처리.
         // 실제 운영 시에는 메시지용 서버 따로 사전 작업 처리용 서버 따로?
@@ -127,7 +122,7 @@ const server = net.createServer((socket) => {
                     });
 
                     socket.write(isDuplicated.toString());
-                    console.log('닉네임 중복체크 응답-', isDuplicated.toString());
+                    logger.info('닉네임 중복체크 응답-', isDuplicated.toString());
                 })
         } else if(obj_data.infoType === Chat.INFO_TYPE.requestClientSocketInfoWithId){ // 아이디가 없는, 이제 막 연결한 유저면,
             // 로그인 기능 생략. 접속한 순서대로 id 발급.
@@ -146,12 +141,12 @@ const server = net.createServer((socket) => {
             // clients[] 대신 socket으로 방금 접속한 이에게만 전송.
             const welcomeChat = new Chat(id, nick, `어서오세요 ${nick} 님 !`, Chat.INFO_TYPE.responseClientSocketInfoWithId, socket.remotePort, socket.remoteAddress);
             socket.write(JSON.stringify(welcomeChat));
-            console.log('환영인사-', welcomeChat);
+            logger.info('환영인사-', welcomeChat);
 
             // 입장 유저 제외 나머지 유저에게 새 유저 입장 알림.
             await broadcastMessage(new Chat(id, nick, `${nick}님이 대화방에 입장하셨습니다`, Chat.INFO_TYPE.inform, socket.remotePort, socket.remoteAddress), socket);
             
-            console.log('클라이언트 수: ', clients.length);
+            logger.info('클라이언트 수: ', clients.length);
 
         } else if (obj_data.infoType === Chat.INFO_TYPE.requestClientSocketInfo){    // 서버 재시작으로 이미 아이디는 가지고 있다면,
             id = obj_data.id;
@@ -161,7 +156,7 @@ const server = net.createServer((socket) => {
 
             const socketInfoChat = new Chat(id, nick, '서버와 연결되었습니다.', Chat.INFO_TYPE.responseClientSocketInfo, socket.remotePort, socket.remoteAddress);
             socket.write(JSON.stringify(socketInfoChat));
-            console.log('재시작 후 연결 알림-', socketInfoChat);
+            logger.info('재시작 후 연결 알림-', socketInfoChat);
             await notifyDisconnectedClientsAfterChecking();
         } 
     });
@@ -169,7 +164,7 @@ const server = net.createServer((socket) => {
     // end -> 클라이언트가 소켓 연결을 닫을 때 발생.
     socket.on('end', async () => {
         if(clientState === Client.STATE.chat){  // 연결 끊김에 대한 처리는 채팅 소켓에만.
-            console.log(`${id}번 클라이언트 연결 종료`);
+            logger.info(`${id}번 클라이언트 연결 종료`);
 
             // 먼저 클라이언트 목록에서 지우고,
             const index = clients.indexOf(socket);
@@ -181,7 +176,7 @@ const server = net.createServer((socket) => {
             // 나머지 클라이언트들에게 알림.
             await broadcastMessage(new Chat(id, nick, `${nick}님이 대화방을 나가셨습니다.`, Chat.INFO_TYPE.inform, socket.remotePort, socket.remoteAddress));
 
-            console.log('클라이언트 수: ', clients.length);
+            logger.info('클라이언트 수: ', clients.length);
         }
     })
 });
@@ -228,7 +223,7 @@ async function notifyDisconnectedClientsAfterChecking(){
 async function broadcastMessage(message, exceptSocket = null){
     const promises = clients.map(c => sendMessage(c, message, exceptSocket));
     await Promise.all(promises);
-    console.log('서버가 보낸 메시지-', message);
+    logger.info('서버가 보낸 메시지-', message);
 }
 
 // 단일 클라이언트 소켓에 메시지 전송.
