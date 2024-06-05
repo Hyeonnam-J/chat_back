@@ -22,11 +22,15 @@ const myLevels = {
     }
 };
 
-// 로그 형식.
+/**
+ * 로그 형식
+ * 
+ * @param {Object} ...metadata - 메시지 외 아이디, 닉, 어드레스, 포트 정보를 가진 Chat 객체.
+ */
 const myFormat = printf(({ label, timestamp, level, message, ...metadata }) => {
     let _log = `[${label}] ${timestamp} (${level}) ${message}`;
-    if(Object.keys(metadata).length){
-        _log += `${JSON.stringify(metadata)}`;
+    if(Object.keys(metadata).length){   // 0 이하 거짓, 1 이상 참.
+        _log += ` ${JSON.stringify(metadata)}`;
     }
     return _log;
 });
