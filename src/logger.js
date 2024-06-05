@@ -27,8 +27,8 @@ const myLevels = {
  * 
  * @param {Object} ...metadata - 메시지 외 아이디, 닉, 어드레스, 포트 정보를 가진 Chat 객체.
  */
-const myFormat = printf(({ label, timestamp, level, message, ...metadata }) => {
-    let _log = `[${label}] ${timestamp} (${level}) ${message}`;
+const myFormat = printf(({ timestamp, label, level, message, ...metadata }) => {
+    let _log = `${timestamp} [${label}] (${level}) ${message}`;
     if(Object.keys(metadata).length){   // 0 이하 거짓, 1 이상 참.
         _log += ` ${JSON.stringify(metadata)}`;
     }
@@ -38,8 +38,8 @@ const myFormat = printf(({ label, timestamp, level, message, ...metadata }) => {
 const logger = createLogger({
     levels: myLevels.levels,
     format: combine(
-        label({ label: 'server-1' }),
         timestamp(),
+        label({ label: 'server-1' }),
         myFormat,
     ),
 
