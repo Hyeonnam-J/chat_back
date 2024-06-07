@@ -1,5 +1,7 @@
 'use strict';
 
+const { logger } = require('../logger')
+
 const executeExceptionHandler = function(){
     process.on('uncaughtException', e => {
         logger.error(`uncaughtException - ${e}`);
