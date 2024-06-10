@@ -4,10 +4,10 @@ const fs = require('fs');
 
 const UTF_8 = 'utf-8';
 
-const SERVER_INFO_PATH = '/home/hn/project/chat_etc/server.txt';
-const CLIENTS_INFO_PATH = '/home/hn/project/chat_etc/clients.txt';
-const STATE_INFO_PATH = '/home/hn/project/chat_etc/state.txt';
-const ID_INFO_PATH = '/home/hn/project/chat_etc/id.txt';
+const SERVER_INFO_PATH = '/home/hn/project/chat/chat_etc/server.txt';
+const CLIENTS_INFO_PATH = '/home/hn/project/chat/chat_etc/clients.txt';
+const STATE_INFO_PATH = '/home/hn/project/chat/chat_etc/state.txt';
+const ID_INFO_PATH = '/home/hn/project/chat/chat_etc/id.txt';
 
 // 서버 호스트, 포트 정보 가져오기.
 const getServerInfo = function(){
